@@ -5,9 +5,9 @@
 ---
 ***Contents***
 - [C++11：引用](#c11引用)
-  - [左值&右值](#左值右值)
+  - [左值\&右值](#左值右值)
   - [右值引用 *(rvalue reference)*](#右值引用-rvalue-reference)
-  - [常量左值引用 *(const rvalue reference)*](#常量左值引用-const-rvalue-reference)
+  - [常量左值引用 *(const lvalue reference)*](#常量左值引用-const-lvalue-reference)
   - [万能引用 *(universal reference)*](#万能引用-universal-reference)
     - [来点有意思的东西](#来点有意思的东西)
   - [移动语义 `std::move`](#移动语义-stdmove)
@@ -167,7 +167,7 @@ result()
 
 ---
 
-## 常量左值引用 *(const rvalue reference)*
+## 常量左值引用 *(const lvalue reference)*
 * 常量左值引用，可以绑定左值和右值，但不能更改引用的值
 * 非常量左值引用只能绑定左值，右值引用只能绑定右值
 ```cpp
@@ -176,6 +176,8 @@ const int& b = a; // 绑定左值
 
 const int& c = 1; // 绑定右值
 ```
+
+常量左值引用也可以延长右值的生命周期，这里不展开说明
 
 ---
 
