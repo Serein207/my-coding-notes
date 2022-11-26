@@ -383,7 +383,7 @@ std::cout << "a3.m_data = " << *a3.m_data <<std::endl;
 * 移动语义对于拥有资源的对象有效，对于基本类型没有意义
 ```cpp
 A a2 = std::move(a1);                  // 调用移动构造函数
-std::cout << "a1.m_data = " << *a1.m_data <<std::endl;
+std::cout << "a2.m_data = " << *a2.m_data <<std::endl;
 ```
 两个代码块不可以在同一作用域进行
 ```cpp
