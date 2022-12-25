@@ -5,6 +5,7 @@
 - [C++11：String](#c11string)
   - [C++风格字符串 `std::string`](#c风格字符串-stdstring)
   - [原始字面量 *(raw string literal)*](#原始字面量-raw-string-literal)
+  - [用户定义字面量](#用户定义字面量)
 
 ---
 
@@ -265,6 +266,54 @@ std::cout << str << std::endl;
               3,
               4
 ```
+
+---
+## 用户定义字面量
+当我们使用 `auto` 推导字符串类型时，会推导为 `const char*` 类型，而不是我们更加希望的 `string` 类型。
+
+为此，C++11支持用户定义字面量
+
+```cpp
+void operator""_r (const char* str, size_r size) {
+   std::cout << str << " " << size << std::endl;
+}
+
+void test() {
+   "123456"_r;
+}
+```
+**output**
+```
+123456 6
+```
+
+为了解决 `auto` 推导的问题，我们可以这样写
+```cpp
+std::string operator""_s(const char* str, size_t size) {
+   return str;
+}
+
+void test() {
+   auto str = "123456"_s;
+}
+```
+这样 `auto` 推导的str就是 `string` 类型了。
+
+需要注意的是，用户定义的后缀必须有下划线 `_` 字符开始，标准库定义的用户定义后缀不以下划线开始。
+
+在标准库中也提供了和上述用法相同的后缀 `s`（C++14）
+```cpp
+auto str = "123456"s;
+```
+用户定义字面量的形参列表 **有以下固定写法**，不可以有其他参数
+| 参数表                     |
+| -------------------------- |
+| `const char*`              |
+| `unsigned long long int`   |
+| `long double`              |
+| `char`                     |
+| `const char*, std::size_t` |
+
 
 ---
 **edit & arrange**  Serein
