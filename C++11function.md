@@ -623,6 +623,9 @@ int main() {
   std::for_each(v.begin(), v.end(), Show());
 }
 ```
+  
+lambda函数的本质是一个 **匿名类中的仿函数** ，捕获列表即 **类的成员变量** ，需要记住它的本质不是函数
+  
 ~~对象大一统理论后，~~ lambda函数同样也可以作为参数传入
 ```cpp
 std::vector<int> v = {1, 2, 3};
