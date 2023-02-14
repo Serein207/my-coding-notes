@@ -423,7 +423,46 @@ for(int ele : arr) {
 }
 ```
 
+### 结构化绑定
+
+结构化绑定允许声明多个变量，这些变量使用数组、结构体、pair、或元组中的元素以初始化。
+
+例如，假设有下面的数组
+
+```cpp
+std::array values{11, 22, 33};
+```
+
+可声明3个变量x、y、z，像下面这样使用数组中的3个值进行初始化。注意，必须使用 `auto` 关键字。例如，不能用 `int` 代替 `auto` 
+
+```cpp
+auto [x, y, z]{values};
+```
+
+使用结构化绑定声的变量数量必须与右侧表达式的值数量匹配
+
+如果所有非静态成员都是公有的，也可以将结构化绑定用于结构体
+
+```cpp
+struct Point {double m_x, m_y, m_z;};
+Point point;
+point.m_x = 1.0;  point.m_y = 2.0;  point.m_z = 3.0;
+auto [x, y, z]{point};  
+```
+
+正如最后一个例子，以下代码中将pair中的元素分解为单独的变量
+
+```cpp
+pair myPair{"hello", 5};
+auto [theString, theInt]{myPair};
+std::cout << theString << std::endl;
+std::cout << theInt << std::endl;
+```
+
+通过 `auto&` 或 `const auto&` 代替 `auto` 还可以使用结构化绑定语法创建一组对非const的引用或const引用。
+
 #### 基于范围的 `for` 循环初始化器 
+
 C++20起，可以在基于范围的for循环中使用初始化器，与if和switch语句中的用法类似，语法如下：
 
 ```cpp
