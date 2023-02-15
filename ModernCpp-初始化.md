@@ -202,3 +202,40 @@ Employee anEmployee{.firstInitial = 'J',
 ```
 
 使用指派初始化器的最后一个好处是，当新成员被添加到数据结构时，使用指派初始化器的现有代码将继续起作用。新的数据成员将使用其默认值进行初始化。
+
+### 拷贝列表初始化和直接列表初始化
+
+有两种使用大括号初始化列表的初始化方式：
+
+- 拷贝列表初始化： `T obj = {arg1, arg2, ...};`
+- 直接列表初始化： `T obj {arg1, arg2, ...};`
+
+从C++17之后，你会得到如下结果
+
+```cpp
+// Copy list initialization
+auto a = {11};      // initializer_list<int>
+auto b = {11, 22};  // initializer_list<int>
+
+// Direct list initialization
+auto c{11};         // int
+auto d{11, 22};     // Error, too many elements
+```
+
+请注意，对于拷贝列表初始化，带括号的初始化程序中的所有元素都必须具有相同的类型。例如，以下内容会编译失败：
+
+```cpp
+auto b = {11, 22.33}; // compile error
+```
+
+在C++11/14中，拷贝列表和直接列表初始化都将推断出 `initializer_list<>`。
+
+```cpp
+// Copy list initialization
+auto a = {11};      // initializer_list<int>
+auto b = {11, 22};  // initializer_list<int>
+
+// Direct list initialization
+auto c{11};         // initializer_list<int>
+auto d{11, 22};     // initializer_list<int>
+```
