@@ -245,7 +245,6 @@ int main() {
 }
 ```
 
-
 ## 共享指针 `std::shared_ptr`
 共享指针会记录有多少个共享指针指向同一个对象，当这个数字降到0时，程序就会自动释放这个对象
 
@@ -437,6 +436,7 @@ int main() {
 是的，控制台什么都没打印，这说明析构函数没有被执行，所以共享指针指向的内存没有被释放，发生内存泄漏
 
 我们通过一张图看一下`std::shared_ptr` 的依赖情况
+
 ```mermaid
 graph TB
 P(principle)
@@ -452,9 +452,11 @@ U--->S
 U--类成员-->_T--->T
 P--->T
 ```
+
 图中两个类的共享指针引用计数都为`2`，类被创建在堆区，类内指针维护堆区数据
 
 程序运行结束后，栈区指针 `principle` 和 `university` 的生命周期结束，两个类的 `std::shared_ptr` 的引用计数仍然没有降为`0`，堆区指针互相引用，依赖变为下图
+
 ```mermaid
 graph TB
 _S[Teacher::_school]
@@ -465,14 +467,13 @@ T((Teacher))
 _S--->S
 _T--->T
 ```
-堆区数据不会被销毁，发生内存泄漏
 
+堆区数据不会被销毁，发生内存泄漏
 
 ## 弱指针 `std::weak_ptr`
 
 为了解决共享指针的环形依赖的问题，我们引入弱指针 `std::weak_ptr`
 
----
 ### 语法
 >```cpp
 >std::weak_ptr<Type> p;
@@ -516,17 +517,14 @@ void observe() {
 }
 
 int main() {
-   {
-      auto sp = std::make_shared<int>(42);
-      gw = sp;
+  auto sp = std::make_shared<int>(42);
+  gw = sp;
 
-      observe();
-   }
-
-   observe();
+  observe();
 }
 ```
 上述代码定义了一个`observe`函数，用来观察`sp`指向的对象有没有被销毁
+
 **output**
 ```
 use_count == 1: 42
