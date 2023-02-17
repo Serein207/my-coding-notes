@@ -195,56 +195,56 @@ class KeyValue {
 template<>
 class std::formatter<KeyValue> {
 public:
-	constexpr auto parse(auto& context) {
-		auto iter { context.begin() };
-		const auto end { context.end() };
-		if (iter == end || *iter == '}') {  // {} format specifier
-			m_outputType = OutputType::KeyAndValue;
-			return iter;
-		}
+  constexpr auto parse(auto& context) {
+    auto iter { context.begin() };
+    const auto end { context.end() };
+    if (iter == end || *iter == '}') {  // {} format specifier
+      m_outputType = OutputType::KeyAndValue;
+      return iter;
+    }
 
-		switch (*iter) {
-		case 'a': // {:a} format specifier
-			m_outputType = OutputType::KeyOnly;
-			break;
-		case 'b': // {:b} format specifier
-			m_outputType = OutputType::ValueOnly;
-			break;
-		case 'c':	// {:c} format specifier
-			m_outputType = OutputType::KeyAndValue;
-			break;
-		default:
-			throw std::format_error { "Invalid KeyValue format specifier." };
-		}
+    switch (*iter) {
+    case 'a': // {:a} format specifier
+      m_outputType = OutputType::KeyOnly;
+      break;
+    case 'b': // {:b} format specifier
+      m_outputType = OutputType::ValueOnly;
+      break;
+    case 'c':	// {:c} format specifier
+      m_outputType = OutputType::KeyAndValue;
+      break;
+    default:
+      throw std::format_error { "Invalid KeyValue format specifier." };
+    }
 
-		++iter;
-		if (iter != end && *iter != '}') {
-			throw std::format_error { "Invalid KeyValue format specifier." };
-		}
-		return iter;
-	}
+    ++iter;
+    if (iter != end && *iter != '}') {
+      throw std::format_error { "Invalid KeyValue format specifier." };
+    }
+    return iter;
+  }
 
-	auto format(const KeyValue& kv, auto& context) {
-		switch (m_outputType) {
-			using enum OutputType;
+  auto format(const KeyValue& kv, auto& context) {
+    switch (m_outputType) {
+      using enum OutputType;
 
-		case KeyOnly:
-			return std::format_to(context.out(), "{}", kv.getKey());
-		case ValueOnly:
-			return std::format_to(context.out(), "{}", kv.getValue());
-		default:
-			return std::format_to(context.out(), "{} - {}",
-				kv.getKey(), kv.getValue());
-		}
-	}
+    case KeyOnly:
+      return std::format_to(context.out(), "{}", kv.getKey());
+    case ValueOnly:
+      return std::format_to(context.out(), "{}", kv.getValue());
+    default:
+      return std::format_to(context.out(), "{} - {}",
+        kv.getKey(), kv.getValue());
+    }
+  }
 
 private:
-	enum class OutputType {
-		KeyOnly,
-		ValueOnly,
-		KeyAndValue
-	};
-	OutputType m_outputType { OutputType::KeyAndValue };
+  enum class OutputType {
+    KeyOnly,
+    ValueOnly,
+    KeyAndValue
+  };
+  OutputType m_outputType { OutputType::KeyAndValue };
 };
 ```
 
