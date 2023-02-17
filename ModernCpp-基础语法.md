@@ -423,6 +423,14 @@ for(int ele : arr) {
 }
 ```
 
+#### 基于范围的 `for` 循环初始化器 
+
+C++20起，可以在基于范围的for循环中使用初始化器，与if和switch语句中的用法类似，语法如下：
+
+```cpp
+for (std::array{1, 2, 3, 4}; int i : arr) { std::cout << i << std::endl; }
+```
+
 ### 结构化绑定
 
 结构化绑定允许声明多个变量，这些变量使用数组、结构体、pair、或元组中的元素以初始化。
@@ -460,14 +468,6 @@ std::cout << theInt << std::endl;
 ```
 
 通过 `auto&` 或 `const auto&` 代替 `auto` 还可以使用结构化绑定语法创建一组对非const的引用或const引用。
-
-#### 基于范围的 `for` 循环初始化器 
-
-C++20起，可以在基于范围的for循环中使用初始化器，与if和switch语句中的用法类似，语法如下：
-
-```cpp
-for (std::array{1, 2, 3, 4}; int i : arr) { std::cout << i << std::endl; }
-```
 
 ### 初始化列表
 
