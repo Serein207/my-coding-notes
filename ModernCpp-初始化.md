@@ -62,7 +62,7 @@ CircleStruct myCircle3 = {10, 20, 2.5};
 CircleClass myCircle4 = {10, 20, 2.5};
 ```
 
-定义myCircle4时将自动第哦啊用CircleClass的构造函数。甚至等号也是可选的，因此下面的代码与前面的代码等价：
+定义myCircle4时将自动调用CircleClass的构造函数。甚至等号也是可选的，因此下面的代码与前面的代码等价：
 
 ```cpp
 CircleStruct myCircle5{10, 20, 2.5};
