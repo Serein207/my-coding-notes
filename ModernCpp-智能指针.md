@@ -53,6 +53,7 @@ void func() {
 上述代码中，虽然我们手动释放了`p`，但是如果`p->foo()`抛出异常，会导致下一行`delete`不会被执行，造成内存泄露
 
 但是，如果我们将p改为智能指针，即使出现异常，也会正常释放内存
+
 ```cpp
 auto p = std::make_unique<A>();
 p->foo();
@@ -102,10 +103,12 @@ up2 = up1;                  // error
 以上代码编译时报错，因为我们不能复制控制权
 
 但是我们可以转移控制权
+
 ```cpp
 std::unique_ptr<int> up1 = std::make_unique<int>(100);
 std::unique_ptr<int> up2(up1.release());
 ```
+
 上述代码中，`up2`通过转移获得了对同一块内存的控制权，`up1`随即被销毁
 
 当然，你也可以使用`std::move`来处理独享指针
@@ -119,6 +122,7 @@ std::unique_ptr<Type> up2 = std::move(up1);
 在默认情况下，`std::unique_ptr`使用`new`和`delete`实现分配和释放内存
 
 你也可以自定义分配和释放函数，通过将释放函数地址填入第二个模板参数中
+s
 ```cpp
 int* my_alloc(int v) {
   std::cout << "allocate" << std::endl;
@@ -138,7 +142,9 @@ int main() {
 `std::unique_ptr`绑定分配和释放内存的函数在编译器进行，释放函数的类型变成它的一部分，避免运行时绑定的时间损耗，这也决定了`std::unique_ptr`的0额外开销的特性，让用户使用起来更简单
 
 ### 如何在函数间传递 `std::unique_ptr`
+
 由于`std::unique_ptr`不能复制，所以值传递时会报错
+
 ```cpp
 void pass_up(std::unique_ptr<int> up) {
    std::cout << "pass_up" << *p << std::endl;
@@ -149,7 +155,6 @@ int main() {
   pass_up(up);
 }
 ```
-以上代码报错，那我们应该怎么办呢
 
 **如果我们只想要访问`std::unique_ptr`指向的内容，我们不需要传递`std::unique_ptr`本身，我们只需要传递其对应的资源就可以了**
 
@@ -163,9 +168,11 @@ int main() {
   pass_up(*up);
 }
 ```
+
 这种方法通过值传递资源避免独享指针的复制操作
 
 我们也可以把`up.get()`作为参数传递，也能访问资源而避免复制
+
 ```cpp
 void pass_up(int* p) {
    std::cout << "pass_up" << *p << std::endl;
@@ -180,6 +187,7 @@ int main() {
 以上情况只能让我们访问`std::unique_ptr`的资源，而非本身
 
 如果我们想改变的是指针本身，那么我们就要将参数改为`std::unique_ptr`的引用
+
 ```cpp
 void pass_up(std::unique_ptr<int>& up) {
    std::cout << "pass_up " << *up << std::endl;
@@ -197,6 +205,7 @@ int main() {
 pass_up 123
 up is reset
 ```
+
 因为传递参数为引用，所以操作函数中`up`时就是它本身，`up`在函数中被`reset`并置空，主函数中条件语句判断为真并输出
 
 #### 用 `std::move` 转移 `std::unique_ptr` 的控制权
@@ -220,7 +229,8 @@ up is moved
 ```
 因为原`up`被`move`后置空，所以主函数中条件语句判断为真并输出
 
-#### 函数返回`std::unique_ptr`
+#### 函数返回 `std::unique_ptr`
+
 ```cpp
 std::unique_ptr<int> return_uptr(int value) {
   std::unique_ptr<int> up = std::make_unique<int>(value);
@@ -246,6 +256,7 @@ int main() {
 ```
 
 ## 共享指针 `std::shared_ptr`
+
 共享指针会记录有多少个共享指针指向同一个对象，当这个数字降到0时，程序就会自动释放这个对象
 
 ### 语法
@@ -265,9 +276,11 @@ std::cout << *p <<std::endl;
 ```
 321
 ```
+
 多个指针指向同一对象的操作被称为 **共享**
 
 ### 自动管理内存
+
 `use_count` 返回共享指针的数量，`reset` 使指针重置，不再指向原来的对象
 ```cpp
 class A {
@@ -289,7 +302,9 @@ int main() {
    p3.reset();
 }
 ```
+
 **output**
+
 ```
 A constructor
 1
@@ -297,9 +312,11 @@ A constructor
 3
 A destructor
 ```
+
 3个 `std::shared_ptr` 被重置后，所指向的对象被自动销毁
 
 ### 引用计数
+
 每创建一个指向当前对象的 `std::shared_ptr`，引用计数加一；每销毁一个则引用计数减一
 
 引用计数被减为0时，对象被自动销毁
@@ -357,33 +374,25 @@ int main() {
 
 #### 别名 Aliasing
 
+shared_ptr支持所谓的别名。这允许一个shared_ptr与另一个shared_ptr共享一个指针（拥有的指针），但指向不同的对象（存储的指针）。例如，这可用于使用一个shared_ptr拥有一个对象本身的同时，指向该对象的成员，例如：
+
 ```cpp
-struct Bar { int i = 123; };
-struct Foo { Bar bar; };
-
-int main() {
-  std::shared_ptr<Foo> f = std::make_shared<Foo>();
-  std::cout << f.use_count() << std::endl;
-
-  std::shared_ptr<Bar> b(f, &(f->bar));
-  std::cout << f.use_count() << std::endl;
-
-  std::cout << b->i << std::endl;
+class Foo {
+ public:
+   Foo(int value) : m_data{value} {}
+   int m_data;
 }
-```
-**output**
-```
-1
-2
-123
+
+auto foo {std::make_shared<Foo>(42)};
+auto aliasing {std::shared_ptr<int> {foo, &foo->m_data}};
 ```
 
-`f` 是指向 `Foo` 类的一个共享指针，共享指针 `b` 的语法和之前的语法都不一样，它接收了两个参数，分别是共享指针`f`和它所指向的类成员`bar`的地址  
-这就是共享指针的别名，**`b` 拥有了对 `f` 指向对象的管理权**。定义 `b` 后，`Foo` 的引用计数加一，如果 `b` 不消失，那么 `f` 指向的资源就不会被删除；但是 `b` 表示的是 `Foo` 的指针，所以 **通过`b`访问的对象是 `Bar` 类型** 而不是 `Foo` 类型  
+当两个shared_ptr（foo和aliasing）都销毁时，才会销毁Foo对象。“拥有的指针”用于引用计数，对指针解引用或调用它的 `get()` 时，将返回“存储的指针”。
 
-通常这个方法被用于**访问类成员**，我们希望访问类成员的时候，类对象不会被删除。所以我们通过别名**增加对类对象的控制权**，但是实际上访问的仍然是成员变量
+通常这个方法被用于**访问类成员**，我们希望访问类成员的时候，类对象不会被删除。所以我们通过别名**增加对类对象的控制权**，但是实际上访问的仍然是成员变量。
 
 ### 危险行为
+
 ```cpp
 std::shared_ptr<int> p{new int(100)};
 std::shared_ptr<int> p2 = p;
@@ -504,6 +513,7 @@ number is 100
 ```
 
 我们来看cppreference上的一段代码
+
 ```cpp
 std::weak_ptr<int> gw;
 
@@ -568,3 +578,97 @@ School Destructor
 
 弱指针 `_school` 如果观察到 `university` 被销毁，则返回 `nullptr`，共享指针引用计数变为0，堆区数据被释放
 
+## `std::enable_shared_from_this`
+
+`std::enable_shared_from_this` 派生的类允许对象调用方法，以安全地返回指向自己的shared_ptr或weak_ptr。如果没有这个基类，返回有效的shared_ptr或weak_ptr的一种方法是将weak_ptr作为成员添加到类中，并返回它的副本或返回由它构造的shared_ptr。enable_shared_from_this类给派生类添加了以下两个方法：
+
+- `shared_from_this()` 返回一个shared_ptr，它共享对象的所有权。
+- `weak_from_this()` 返回一个weak_ptr，它跟踪对象的所有权。
+
+注意，仅当对象的指针已经存储在shared_ptr时，才能使用对象上的 `shared_from_this()` 。否则，将会抛出 `std::bad_weak_ptr` 异常（C++17起）。
+
+`enable_shared_from_this` 提供安全的替用方案，以替代 `std::shared_ptr<T>(this)` 这样的表达式（这种不安全的表达式可能会导致 `this` 被多个互不知晓的所有者析构，见下方示例）。
+
+```cpp
+struct Good : std::enable_shared_from_this<Good> // 注：公开继承
+{
+  std::shared_ptr<Good> getptr() {
+    return shared_from_this();
+  }
+};
+ 
+struct Best : std::enable_shared_from_this<Best> // 注：公开继承
+{
+  std::shared_ptr<Best> getptr() {
+    return shared_from_this();
+  }
+private:
+  Best() = default;
+};
+ 
+struct Bad
+{
+  std::shared_ptr<Bad> getptr() {
+    return std::shared_ptr<Bad>(this);
+  }
+  ~Bad() { std::cout << "Bad::~Bad() called\n"; }
+};
+ 
+void testGood()
+{
+  // ok：两个 shared_ptr 共享同一对象
+  std::shared_ptr<Good> good0 = std::make_shared<Good>();
+  std::shared_ptr<Good> good1 = good0->getptr();
+  std::cout << "good1.use_count() = " << good1.use_count() << '\n';
+}
+ 
+void misuseGood()
+{
+  // bad：调用 shared_from_this 但没有 std::shared_ptr 占有调用者
+  try {
+    Good not_so_good;
+    std::shared_ptr<Good> gp1 = not_so_good.getptr();
+  } catch(std::bad_weak_ptr& e) {
+    // 未定义行为（C++17 前）/抛出 std::bad_weak_ptr （C++17 起）
+    std::cout << e.what() << '\n';    
+  }
+}
+ 
+void testBest()
+{
+  std::shared_ptr<Best> best0 = Best::create();
+  std::shared_ptr<Best> best1 = best0->getptr();
+  std::cout << "best1.use_count() = " << best1.use_count() << '\n';
+ 
+  // Best stackBest; // <- 不会通过编译，因为 Best::Best() 为私有。
+}
+ 
+void testBad()
+{
+  // Bad, each shared_ptr thinks it's the only owner of the object
+  std::shared_ptr<Bad> bad0 = std::make_shared<Bad>();
+  std::shared_ptr<Bad> bad1 = bad0->getptr();
+  std::cout << "bad1.use_count() = " << bad1.use_count() << '\n';
+} // UB： Bad 的二次删除
+
+int main()
+{
+  testGood();
+  misuseGood();
+ 
+  testBest();
+ 
+  testBad();
+}
+```
+
+output
+
+```
+good1.use_count() = 2
+bad_weak_ptr
+best1.use_count() = 2
+bad1.use_count() = 1
+Bad::~Bad() called
+Bad::~Bad() called
+```
