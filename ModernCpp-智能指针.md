@@ -672,3 +672,9 @@ bad1.use_count() = 1
 Bad::~Bad() called
 Bad::~Bad() called
 ```
+
+## 过时的、移除的 `auto_ptr`
+
+在C++11之前，老的标准库包含了一个智能指针的简单实现，称为auto_ptr。遗憾的是，它存在一些严重缺陷。auto_ptr在C++11/14弃用，在C++17移除。
+
+不要再使用旧的auto_ptr，而使用unique_ptr和shared_ptr！
