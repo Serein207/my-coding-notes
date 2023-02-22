@@ -102,6 +102,111 @@ explicit(true) MyClass(int);
 
 当然，仅仅编写 `explicit(true)` 就等价于 `explicit`，但在它使用所谓类型萃取的泛型模板代码中更加有用。使用类型萃取，可以查询给定类型的某些属性，例如某个类型是否可以转换为另一个类型。类型萃取的结果可用作 `explicit()` 的参数。类型萃取允许编写高级泛型代码。
 
+## 异常安全的赋值运算
+
+> 本部分代码为截取代码，源码见 code/src
+
+下面包含赋值运算符的Spreadsheet类定义：
+
+```cpp
+export class Spreadsheet{
+ public:
+   Spreadsheet& operator=(const Spreadsheet&rhs);
+   // Code omitted for brevity
+};
+```
+
+下面是一个不成熟的实现：
+
+```cpp
+Spreadsheet& Spreadsheet::operator=(const Spreadsheet& rhs) {
+  // Check for self-assignment
+  if(this == &rhs)  return *this;
+
+  // Free the old memory
+  for(size_t i { 0 }; i < m_width; i++) {
+    delete[] m_cells[i];
+  }
+  delete[] m_cells;
+  m_cells = nullptr;
+
+  // Allocate new memory
+  m_width = rhs.m_width;
+  m_height = rhs.m_height;
+  
+  m_cells = new SpreadsheetCell*[m_width];
+  for(size_t i { 0 }; i < m_width; i++) {
+    m_cells[i] = new SpreadsheetCell[m_height];
+  }
+
+  // Copy the data
+  for(size_t i { 0 }; i < m_width; i++) {
+    for(size_t j { 0 }; j < m_height; j++) {
+      m_cells[i][j] = rhs.m_cells[i][j];
+    }
+  }
+
+  return *this;
+}
+```
+
+代码首先检查自我复制，然后释放this对象当前内存，然后重新分配内存，最后复制各个元素。然而，这个代码不是异常安全的，程序可能发生内存泄漏。
+
+我们需要一种全有或全无的机制：要么全部成功，要么该对象保持不变。为了实现这样一个异常安全的赋值运算，要使用“复制和交换”惯用方法。下面式包含 `operator=` `swap()` 方法以及非成员函数Spreadsheet类的定义：
+
+```cpp
+export class Spreadsheet {
+ public:
+   Spreadsheet& operator=(const Spreadsheet& rhs);
+	 void swap(Spreadsheet& other) noexcept;
+   // ...
+};
+export void swap(Spreadsheet& first, Spreadsheet& second) noexcept;
+```
+
+要实现异常安全的“复制和交换”惯用方法，要求 `swap()` 函数永不抛异常，因此将其标记为 `noexcept`。
+
+交换每个数据成员可以使用标准库中提供的 `<utility>` 中的 `std::swap()` 工具函数，它可以高效的交换两个值。
+
+```cpp
+void Spreadsheet::swap(Spreadsheet& other) noexcept {
+	std::swap(m_height, other.m_height);
+	std::swap(m_width, other.m_width);
+	std::swap(m_cells, other.m_cells);
+}
+```
+非成员的 `swap()` 只是简单地调用了 `swap()` 方法：
+
+```cpp
+void swap(Spreadsheet& first, Spreadsheet& second) noexcept {
+	first.swap(second);
+}
+```
+
+现在就有了异常安全的 `swap()` 函数，它可以用来实现赋值运算符：
+
+```cpp
+Spreadsheet& Spreadsheet::operator=(const Spreadsheet& rhs) {
+	Spreadsheet temp { rhs };
+	swap(temp);
+	return *this;
+}
+```
+
+首先，先创建一份右边的副本，名为temp。然后用当前对象与这个副本交换。这个模式式实现赋值运算符的推荐方法，因为它保证强大的异常安全性。
+
+如果不使用“复制和交换”惯用方法实现赋值运算符，那么为了提高效率，有时也为了确保正确性，赋值运算符中第一行代码通常会检查自我赋值。例如：
+
+```cpp
+Spreadsheet& Spreadsheet::operator=(const Spreadsheet& rhs) {
+  if(this == rhs) return *this;
+  // ...
+  return *this;
+}
+```
+
+使用“复制和交换”惯用方法的情况下，就不再需要自我赋值检查了。
+
 ## 移动语义 `std::move`
 * 拷贝堆区对象需要重写拷贝构造函数和赋值函数，实现深拷贝
 * 如果堆区源对象是临时对象（右值），深拷贝会造成无意义的内存申请和释放操作
@@ -181,6 +286,7 @@ A(A&& a) {   //需要操作被转移对象的指针，所以不能使用const
   a.m_data = nullptr;                               // 把源对象指针置空
 }
 ```
+
 * 移动赋值函数
 ```cpp
 A& operator=(A&& a) {
