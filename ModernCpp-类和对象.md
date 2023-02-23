@@ -35,7 +35,9 @@ export class MyClass {
 
 > **注意**
 >
-> 使用 `=delete` 弃置的函数属于显示弃置，会参与重载决议，弃置函数被使用后程序非良构。
+> 使用 `=delete` 弃置的函数属于显式弃置，会参与重载决议，弃置函数被使用后程序非良构。
+>
+> 基类中被弃置的函数（包括构造和析构函数）在派生类中被隐式弃置，不会参与重载决议。
 
 ### 显示默认或显示弃置的拷贝构造函数
 
@@ -160,7 +162,7 @@ Spreadsheet& Spreadsheet::operator=(const Spreadsheet& rhs) {
 export class Spreadsheet {
  public:
    Spreadsheet& operator=(const Spreadsheet& rhs);
-	 void swap(Spreadsheet& other) noexcept;
+   void swap(Spreadsheet& other) noexcept;
    // ...
 };
 export void swap(Spreadsheet& first, Spreadsheet& second) noexcept;
@@ -172,16 +174,16 @@ export void swap(Spreadsheet& first, Spreadsheet& second) noexcept;
 
 ```cpp
 void Spreadsheet::swap(Spreadsheet& other) noexcept {
-	std::swap(m_height, other.m_height);
-	std::swap(m_width, other.m_width);
-	std::swap(m_cells, other.m_cells);
+  std::swap(m_height, other.m_height);
+  std::swap(m_width, other.m_width);
+  std::swap(m_cells, other.m_cells);
 }
 ```
 非成员的 `swap()` 只是简单地调用了 `swap()` 方法：
 
 ```cpp
 void swap(Spreadsheet& first, Spreadsheet& second) noexcept {
-	first.swap(second);
+  first.swap(second);
 }
 ```
 
@@ -189,9 +191,9 @@ void swap(Spreadsheet& first, Spreadsheet& second) noexcept {
 
 ```cpp
 Spreadsheet& Spreadsheet::operator=(const Spreadsheet& rhs) {
-	Spreadsheet temp { rhs };
-	swap(temp);
-	return *this;
+  Spreadsheet temp { rhs };
+  swap(temp);
+  return *this;
 }
 ```
 
@@ -209,109 +211,156 @@ Spreadsheet& Spreadsheet::operator=(const Spreadsheet& rhs) {
 
 使用“复制和交换”惯用方法的情况下，就不再需要自我赋值检查了。
 
-### 移动语义 `std::move`
-* 拷贝堆区对象需要重写拷贝构造函数和赋值函数，实现深拷贝
-* 如果堆区源对象是临时对象（右值），深拷贝会造成无意义的内存申请和释放操作
-* C++11的移动语义可以直接使用源对象，可以提高效率。
+### 移动语义
+
+对象的移动语义(move semantics)需要实现移动构造函数(move constructor)和移动赋值运算符(move assignment operators)。如果源对象是操作结束后会被临时销毁的对象，或是显式使用 `std::move()` 时，编译器就会使用这两个方法。移动将内存和其他资源的所有权从一个对象移动到另一个对象。这两个方法基本上只对成员变量进行浅拷贝，然后转换已分配内存和其他资源的所有权，从而阻止悬空指针和内存泄漏。
+
+移动构造函数和移动赋值运算符将数据成员从源对象移动到新对象，然后使源对象处于有效但不确定的状态。通常，源对象的数据成员被置空，但这不是必须的。不过，不要使用任何已经移动的对象，这会触发未定义行为。 `std::unique_ptr` 和 `std::shared_ptr` 是例外情况，这些智能指针在移动时必须将其内部指针重置为 `nullptr`，这使得移动后可以安全地重用这些智能指针。
+
+### 实现移动语义
+
+为了对类增加移动语义，需要实现移动构造函数和移动赋值运算符。移动构造函数和移动赋值运算符应使用 `noexcept` 限定符标记。这对于与标准库兼容非常重要，因为如果实现了移动语义，标准库容器会移动存储的对象，且确保不抛出异常。
+
+下面的Spreadsheet类定义包含一个移动构造函数和一个移动赋值运算符。也引入了两个辅助方法 `cleanup()` 和 `moveFrom()`。前者在析构函数和移动赋值运算符中调用。后者用于把成员变量从源对象移动到目标对象，接着重置源对象。
+
+```cpp
+export class Spreadsheet {
+public:
+  Spreadsheet(Spreadsheet&& src) noexcept;	          // move constructor
+  Spreadsheet& operator=(Spreadsheet&& rhs) noexcept;	// move assign
+  // ...
+private:
+  void cleanup() noexcept;
+  void moveFrom(Spreadsheet& src) noexcept;
+  // ...
+};
+```
+
+实现代码如下：
+
+```cpp
+void Spreadsheet::cleanup() noexcept {
+  for (size_t i { 0 }; i < m_width; ++i) {
+    delete[] m_cells[i];
+  }
+  delete[] m_cells;
+  m_cells = nullptr;
+  m_width = m_height = 0;
+}
+
+void Spreadsheet::moveFrom(Spreadsheet& src) noexcept {
+  // shallow copy of data
+  m_width = src.m_width;
+  m_height = src.m_height;
+  m_cells = src.m_cells;
+
+  // reset the source object, because ownership has been moved!
+  src.m_width = 0;
+  src.m_height = 0;
+  src.m_cells = nullptr;
+}
+
+// move constructor
+Spreadsheet::Spreadsheet(Spreadsheet&& src) noexcept {
+  moveFrom(src);
+}
+
+// move assign
+Spreadsheet& Spreadsheet::operator=(Spreadsheet&& rhs) noexcept {
+  if (this == &rhs)	return *this;
+
+  // free the old memory and move ownership
+  cleanup();
+  moveFrom(rhs);
+  return *this;
+}
+```
+
+移动构造函数和移动赋值运算符都将m_cells的内存所有权从源对象移动到新对象。移动完成后将源对象资源置空，以防止源对象的析构函数释放这块内存，因为新的对象现在拥有了这块内存。
+
+注意，此实现在移动赋值运算符中包含一个自我赋值检查。取决于你的类以及将类的一个实例移动到另一个实例的方法，此自我赋值检查可能不是必要的。最好将其包括在内，以确保以下代码不会出现问题：
+
+```cpp
+sheet1 = std::move(sheet1);
+```
+
+就像普通的构造函数或拷贝赋值运算符一样，可显式地将移动构造函数和移动赋值运算符设置为默认或将其弃置。
+
+> 仅当类没有用户声明的拷贝构造函数、拷贝赋值运算符、移动赋值运算符或析构函数时，编译器才会为类自动生成默认的移动构造函数。仅当类没有用户声明的拷贝构造函数、移动构造函数、拷贝赋值运算符或析构函数时，才会为类生成默认的移动赋值运算符。
+
+#### 使用 `std::exchange()`
+
+定义在 `<utility>` 中的 `std::exchange()` ，可以用一个新的值替换原来的值，并返回原来的值。例如：
+
+```cpp
+int a { 11 };
+int b { 22 };
+std::cout << std::format("Before exchange(): a = {}, b = {}", a, b) << std::endl;
+int returnValue { std::exchange(a, b) };
+std::cout << std::format("After exchange(): a = {}, b = {}", a, b) << std::endl;
+std::cout << std::format("After exchange(): returnValue = {}", returnValue) << std::endl;
+```
+
+输出如下：
+```
+Before exchange(): a = 11, b = 22
+After exchange(): a = 22, b = 11
+After exchange(): returnValue = 22
+```
+
+在实现移动赋值运算符后，`exchange()` 十分有用。移动赋值运算符需要将数据从源对象移动到目标对象，之后源对象的数据通常为空。使用 `exchange()` 可以更简洁得编写，如下所示：
+
+```cpp
+void Spreadsheet::moveFrom(Spreadsheet& src) noexcept {
+  m_width = std::exchange(src.m_width, 0);
+  m_height = std::exchange(src.m_height, 0);
+  m_cells = std::exchange(src.m_cells, nullptr);
+}
+```
   
-移动语义需要的两个函数
-* 移动构造函数
-  `className(className&& object) {}`
-* 移动赋值函数
-  `className& operator=(className&& object) {}`
+#### 移动对象数据成员
 
-普通深拷贝
+`moveFrom()` 方法对3个数据成员直接赋值，因为这些成员都是基本类型。如果对象还有其他对象作为数据成员，则应当使用 `std::move()` 将其移动到新的对象。
+
+假设Spreadsheet类有一个名为m_name的 `std::string` 数据成员。接着采用以下方式实现 `moveFrom()` 方法：
+
 ```cpp
-class A {
-  public:
-   int* m_data = nullptr;   // 数据成员指向堆区指针
+void Spreadsheet::moveFrom(Spreadsheet& src) noexcept {
+  // move object data members
+  m_name = std::move(src.m_name);
 
-   A() = default;
-
-   void alloc() {
-   try {
-     this->m_data = new int();   // 分配内存
-   } catch (bad_alloc) {
-     alloc();
-   }
-     memset(this->m_data, 0, sizeof(int));   //初始化已分配内存
-   }
-
-   A(const A& a) {
-     std::cout << "copy construction" << std::endl;
-     if(this->m_data == nullptr) alloc();
-     memcpy(this->m_data, a.m_data, sizeof(int));   // 拷贝源对象数据
-   }
-
-   A& operator=(const A& a) {
-     std::cout << "operator=" << std::endl;
-     if(this == &a) return *this;   // 避免自我赋值
-     if(this->m_data == nullptr) alloc();
-     memcpy(this->m_data, a.m_data, sizeof(int));
-     return *this;
-   }
-
-   ~A() {
-      if(this->m_data != nullptr) {
-        delete m_data;
-        m_data = nullptr;
-      }
-   }
-}
-
-int main() {
-    A a1;
-    a1.malloc();
-    *a1.m_data = 3;
-    std::cout << "a1.m_data = " << *a1.m_data << std::endl;
-
-    A a2 = a1;      //调用拷贝构造函数
-    std::cout << "a2.m_data = " << *a2.m_data << std::endl;
-
-    A a3;
-    a3 = a1;        //调用赋值函数
-    std::cout << "a3.m_data = " << *a3.m_data << std::endl;
-
-}
-```
-C++11中将拷贝数据称为拷贝语义，移动语义则是不拷贝语义而修改指针指向
-
-增加构造函数和赋值函数的重载版本，使得传入对象为右值时优先调用移动构造和移动赋值函数
-
-* 移动构造函数
-```cpp
-A(A&& a) {   //需要操作被转移对象的指针，所以不能使用const
-  std::cout << "copy construction" << std::endl;
-  if(this == &a) return *this;   // 避免自我赋值
-  if(this->m_data != nullptr) delete this->m_data;  // 如果已分配内存，则先释放
-  this->m_data = a.m_data;                          // 把资源从对象转移过来
-  a.m_data = nullptr;                               // 把源对象指针置空
+  // move primitives
+  m_width = std::exchange(src.m_width, 0);
+  m_height = std::exchange(src.m_height, 0);
+  m_cells = std::exchange(src.m_cells, nullptr);
 }
 ```
 
-* 移动赋值函数
+#### 使用 `std::swap()` 实现移动构造函数和移动赋值运算符
+
+前面的移动构造函数和移动赋值运算符的实现都使用了 `moveFrom()` 辅助方法。在此实现中，如果给Spreadsheet类添加了其他对象作为数据成员，则必须修改 `swap()` 函数和 `moveFrom()` 方法。为了避免忘记修改引发的bug，可使用 `std::swap()` 函数，编写移动构造函数和移动赋值运算符。
+
+首先删除 `cleanup()` 和 `moveFrom()` 辅助方法，将 `cleanup()` 方法中的代码移入析构函数。此后，可以按照如下实现移动构造函数和移动赋值运算符：
+
 ```cpp
-A& operator=(A&& a) {
-  std::cout << "operator=" << std::endl;
-  if(this == &a) return *this;
-  if(this->m_data != nullptr) delete this->m_data;
-  this->m_data = a.m_data;
-  a.m_data = nullptr;
+Spreadsheet::Spreadsheet(Spreadsheet&& src) noexcept {
+  std::swap(*this, src);
+}
+
+Spreadsheet& Spreadsheet::operator=(Spreadsheet&& rhs) noexcept {
+  std::swap(*this, rhs);
+  return *this;
 }
 ```
-* 调用移动语义
-```cpp
-auto f = [] { A a; a.alloc(); *a.m_data; return a; }; //返回A类对象的lambda函数
-A a1 = f();                                           // lambda函数返回prvalue，
-                                                      // 将调用移动构造函数
-std::cout << "a2.m_data = " << *a2.m_data <<std::endl;
 
-A a2 = f();
-A a3 = a2;                                            // 将调用移动构造函数
-std::cout << "a3.m_data = " << *a3.m_data <<std::endl;
-```
+移动构造函数只是简单地将默认构造的 `*this` 与给定的源对象进行交换。同样，移动赋值运算符也是简单地将默认赋值的 `*this` 与给定的源对象进行交换。
 
-</br>
+> **注意**
+>
+> 用 `std::swap()` 函数实现移动构造函数和移动赋值运算符所需的代码更少，当加入新的数据成员时出现bug的可能性也更低。因为你只需要升级 `swap()` 函数，使其包括新的成员。
+
+
+
 
 * 如果想对一个lvalue使用移动语义，C++11提供了 `std::move()` ，将lvalue转化为rvalue
 * lvalue被move后，不会立刻析构，只有离开自己作用域时才会析构，继续使用左值中的资源会报错
