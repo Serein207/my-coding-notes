@@ -1,0 +1,19 @@
+{
+    "Version": "1.2",
+    "Data": {
+        "Source": "c:\\users\\20753\\source\\repos\\c-cpp-study-notes\\code\\spreadsheet\\spreadsheet_cell.ixx",
+        "ProvidedModule": "spreadsheet_cell",
+        "Includes": [],
+        "ImportedModules": [],
+        "ImportedHeaderUnits": [
+            {
+                "Header": "d:\\program files\\microsoft visual studio\\2022\\community\\vc\\tools\\msvc\\14.35.32215\\include\\string",
+                "BMI": "C:\\Users\\20753\\source\\repos\\C-Cpp-Study-Notes\\code\\spreadsheet\\x64\\Debug\\string_B69E9A2BD838EA2B.ifc.dt"
+            },
+            {
+                "Header": "d:\\program files\\microsoft visual studio\\2022\\community\\vc\\tools\\msvc\\14.35.32215\\include\\string_view",
+                "BMI": "C:\\Users\\20753\\source\\repos\\C-Cpp-Study-Notes\\code\\spreadsheet\\x64\\Debug\\string_view_C502241B2636F365.ifc.dt"
+            }
+        ]
+    }
+}
