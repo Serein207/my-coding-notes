@@ -20,17 +20,29 @@ Spreadsheet::Spreadsheet(const Spreadsheet& src)
 	}
 }
 
+// move constructor
+Spreadsheet::Spreadsheet(Spreadsheet&& src) noexcept {
+	std::swap(*this, src);
+}
+
 Spreadsheet::~Spreadsheet() {
 	for (size_t i { 0 }; i < m_width; ++i) {
 		delete[] m_cells[i];
 	}
 	delete[] m_cells;
 	m_cells = nullptr;
+	m_width = m_height = 0;
 }
 
 Spreadsheet& Spreadsheet::operator=(const Spreadsheet& rhs) {
 	Spreadsheet temp { rhs };
 	swap(temp);
+	return *this;
+}
+
+// move assign
+Spreadsheet& Spreadsheet::operator=(Spreadsheet&& rhs) noexcept {
+	std::swap(*this, rhs);
 	return *this;
 }
 

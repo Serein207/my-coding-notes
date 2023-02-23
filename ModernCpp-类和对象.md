@@ -359,21 +359,92 @@ Spreadsheet& Spreadsheet::operator=(Spreadsheet&& rhs) noexcept {
 >
 > 用 `std::swap()` 函数实现移动构造函数和移动赋值运算符所需的代码更少，当加入新的数据成员时出现bug的可能性也更低。因为你只需要升级 `swap()` 函数，使其包括新的成员。
 
+#### 使用移动语义实现交换函数
 
+考虑交换两个对象的 `swap()` 函数模板，这是另一个使用移动语义提高性能的实例。下面的 `swapCopy()` 实现没有使用移动语义：
 
-
-* 如果想对一个lvalue使用移动语义，C++11提供了 `std::move()` ，将lvalue转化为rvalue
-* lvalue被move后，不会立刻析构，只有离开自己作用域时才会析构，继续使用左值中的资源会报错
-* 如果没有提供移动构造/赋值函数，编译器会调用拷贝构造/赋值函数
-* C++11中所有容器都已经实现移动语义
-* 移动语义对于拥有资源的对象有效，对于基本类型没有意义
 ```cpp
-A a2 = std::move(a1);                  // 调用移动构造函数
-std::cout << "a2.m_data = " << *a2.m_data <<std::endl;
+template <typename T>
+void swapCopy(T& lhs, T& rhs) {
+  T temp { lhs };
+  lhs = rhs;
+  rhs = temp;
+}
 ```
-两个代码块不可以在同一作用域进行
+
+对于这种实现方式，如果类型T的复制开销很大，这个交换将严重影响性能。使用移动语义，`swap()` 函数可避免所有复制：
+
 ```cpp
-A a3;
-a3 = std::move(a1);                    // 调用移动赋值函数
-std::cout << "a3.m_data = " << *a3.m_data <<std::endl;
+template <typename T>
+void swap(T& lhs, T& rhs) {
+  T temp { std::move(lhs) };
+  lhs = std::move(rhs);
+  rhs = std::move(temp);
+}
 ```
+
+这正是标准库的 `std::swap()` 的实现方式。
+
+#### 在返回语句中使用 `std::move()`
+
+对于 `return object;` 形式的语句，如果object是局部变量、函数的参数或临时值，则它们被视为右值表达式，并触发返回值优化（RVO）。此外，若object是一个局部变量，则会启动命名返回值优化（NRVO）。RVO和NRVO都是复制消除的形式，使得从函数返回对象非常高效。使用复制消除，编译器可以避免复制和移动函数返回的对象。这导致了所谓的零拷贝值传递语义。
+
+但是，通过使用 `std::move()`，编译器无法再应用RVO和NRVO，因为这只是用于形式为 `return object;` 的语句。编译器会继续选择移动语义，如果不支持，则使用拷贝语义，这会对性能有很大的影响！因此， **当从函数中返回一个局部变量或参数时，只要写 `return object;` 就可以了，不要使用 `std::move()`。**
+
+#### 向函数传递参数的最佳方法
+
+到目前为止，建议对非基本类型的函数参数使用const引用参数，以避免对传递给函数的实参进行不必要的昂贵复制。但是，如果混合使用右值，情况会略有变化。假设一个函数复制了作为其参数之一传递的实参（这种情况经常在类方法中出现）。下面是一个简单的例子：
+
+```cpp
+class DataHolder {
+ public:
+   void setData(const std::vector<int>& data) { m_data = data; }
+ private:
+   std::vector<int> m_data;
+};
+```
+
+`setData()` 方法生成一份传入数据的副本。既然你对右值和右值引用都很熟悉，那么你可能需要添加一个重载来优化 `setData()` 方法，以避免对传入的数据进行不必要的昂贵复制。例如：
+
+```cpp
+class DataHolder {
+ public:
+   void setData(const std::vector<int>& data) { m_data = data; }
+   void setData(std::vector<int>&& data) { m_data = std::move(data); }
+ private:
+   std::vector<int> m_data;
+};
+```
+
+当以临时调用 `setData()` 时，不会产生任何复制，数据将被移动。
+
+以下代码触发对 `setData()` 的const引用重载版本的调用，从而生成数据的副本：
+
+```cpp
+DataHolder wrapper;
+std::vector myData { 11, 22, 33 };
+wrapper.setData(myData);
+```
+
+另一方面，下面的代码段使用临时变量调用 `setData()`，这回触发对 `setData()` 的右值引用重载版本的调用。随后将移动数据，而不是复制数据。
+
+```cpp
+wrapper.setData({ 11, 22, 33 });
+```
+
+但是，这种作为左值和右值优化的 `setData()` 方法需要实现两个重载。幸运的是，对于单个方法来说有一种更好的方法。是的，值传递！到目前为止，建议对非基本类型的函数参数使用const引用参数，以避免对传递给函数的实参进行不必要的昂贵复制。但是现在我们建议使用值传递，这只适用于函数无论如何都要被复制的参数。在这种情况下，通过使用值传递语义，代码对于左值和右值都是最优的。如果传入一个左值，它只复制一次，就像const引用参数一样。如果传入一个右值，则不会进行复制，就像右值引用参数一样。让我们看一些代码：
+
+```cpp
+class DataHolder {
+ public:
+   void setData(const std::vector<int> data) { m_data = std::move(data); }
+ private:
+   std::vector<int> m_data;
+};
+```
+
+如果将左值传递给 `setData()` 方法，则会将其复制到data参数中，然后移动到m_data。如果将右值传递给 `setData()` 方法，则会将其移动到data参数中，然后再次移动到m_data。
+
+> **注意**
+>
+> 对于函数本身将复制的参数，更倾向于值传递，但仅当该参数属于支持移动语义的类型时。否则，请使用const引用参数。

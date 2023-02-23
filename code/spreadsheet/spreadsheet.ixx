@@ -8,9 +8,11 @@ export class Spreadsheet {
 public:
 	Spreadsheet(size_t width, size_t height);
 	Spreadsheet(const Spreadsheet& src);
+	Spreadsheet(Spreadsheet&& src) noexcept;	// move constructor
 	~Spreadsheet();
 
 	Spreadsheet& operator=(const Spreadsheet& rhs);
+	Spreadsheet& operator=(Spreadsheet&& rhs) noexcept;	// move assign
 	void swap(Spreadsheet& other) noexcept;
 
 	void setCellAt(size_t x, size_t y, const SpreadsheetCell& cell);
