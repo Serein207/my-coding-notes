@@ -104,9 +104,9 @@ explicit(true) MyClass(int);
 
 ## 拷贝和赋值
 
-### 异常安全的赋值运算
+> 本部分代码为截取代码，源码见 code/spreadsheet
 
-> 本部分代码为截取代码，源码见 code/src
+### 异常安全的赋值运算
 
 下面包含赋值运算符的Spreadsheet类定义：
 
