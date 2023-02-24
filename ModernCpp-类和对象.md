@@ -448,3 +448,455 @@ class DataHolder {
 > **注意**
 >
 > 对于函数本身将复制的参数，更倾向于值传递，但仅当该参数属于支持移动语义的类型时。否则，请使用const引用参数。
+
+## 与方法有关的更多内容
+
+C++为方法提供了许多选择，本节将详细介绍这些细节。
+
+### 方法重载
+
+#### 1. 基于 `const` 的重载
+
+可以编写两个名称相同、参数也相同的方法，其中一个是 `const` 的，另一个不是。如果是const对象，就调用const方法；如果是非const对象，就调用非const方法。
+
+通常情况下，const版本和非const版本的实现是一样的。为避免代码重复，可使用 `const_cast()` 转换。例如，Spreadsheet类有一个 `getCellAt()` 方法，该方法返回SpreadsheetCell的非const引用。可添加const重载版本，它返回SpreadsheetCell的const引用。
+
+```cpp
+export class Spreadsheet {
+ public:
+   SpreadsheetCell& getCellAt(size_t x, size_t y);
+   const SpreadsheetCell& getCellAt(size_t x, size_t y) const;
+   // ...
+};
+```
+
+对于 `const_cast()` 转换，你可以像往常一样实现const版本，此后通过适当转换，传递对const版本的调用，以实现非const版本。如下所示：
+
+```cpp
+const SpreadsheetCell& Spreadsheet::getCellAt(size_t x, size_t y) const{
+  verifyCoordinate(x, y);
+  return m_cells[x][y];
+}
+
+SpreadsheetCell& Spreadsheet::getCellAt(size_t x, size_t y) {
+  return const_cast<SpreadsheetCell&>(std::as_const(*this).getCellAt(x, y));
+}
+```
+
+基本上，你使用 `std::as_const()` 将 `*this` 转换为 `const Spreadsheet&` ，调用 `getCellAt()` 方法，并将结果返回为 `const SpreadsheetCell&` ，然后使用 `const_cast()` 转换为非const的 `SpreadsheetCell&` 。
+
+有了这两个重载的 `getCellAt()` ，现在可以在const和非const的Spreadsheet对象上调用 `getCellAt()` 方法：
+
+```cpp
+Spreadsheet sheet1 { 5, 6 };
+SpreadsheetCell& cell { sheet1.getCellAt(1, 1) };
+
+
+const Spreadsheet sheet2 { 5, 6 };
+const SpreadsheetCell cell2 { sheet2.getCellAt(1, 1) };
+```
+
+这里，`getCellAt()` 的const版本做的事情不多，因此使用 `const_cast()` 转换的优势不明显。但如果它能做更多工作，那么通过非const版本转递给const版本，可省区很多代码。
+
+#### 2. 显式弃置重载
+
+重载方法可以被显式弃置，可以通过这种方法禁止调用具有特定参数的成员函数。例如，SpreadsheetCell类有一个方法叫 `setValue(double)`，可按如下方式调用：
+
+```cpp
+SpreadsheetCell cell;
+cell.setValue(3.14);
+cell.setValue(314);
+```
+
+在第三行，编译器将整型值（314）转换为double，然后调用 `setValue(double)`。如果出去某些原因，你不希望以整型调用 `setValue()`，可以显式弃置 `setValue()` 的整型重载版本：
+
+```cpp
+export class SpreadsheetCell {
+ public:
+   void setValue(double value);
+   void setValue(int) = delete;
+};
+```
+
+通过这一改动，以整型为参数调用 `setValue()` 时，编译器会报错。
+
+#### 3. 引用限定方法
+
+可以对类的非临时和临时对象调用普通类方法。假设有以下类：
+
+```cpp
+class TextHolder {
+ public:
+   TextHolder(std::string text) : m_text { std::move(text) } {}
+   const std::string& getText() const { return m_text; }
+ private:
+   std::string m_text;
+};
+```
+
+毫无疑问，可以在TextHolder的非临时对象上调用 `getText()` 方法，如下所示：
+
+```cpp
+TextHolder textHolder { "Hello World" };
+std::cout << textHolder.getText() << std::endl;
+```
+
+`getText()` 也可以被临时调用：
+
+```cpp
+std::cout << TextHolder{ "Hello world!" }.getText() << std::endl;
+std::cout << std::move(textHolder).getText() << std::endl;
+```
+
+可以显式指定能够调用某个方法的类型实例，无论是临时实例还是非临时实例。这是通过向方法添加一个 *引用限定符(ref-qualifier)* 来实现的。如果只应在非临时实例上调用方法，则在方法头之后添加一个 `&` 限定符。类似地，如果只应在临时实例上调用方法，则要添加一个 `&&` 限定符。
+
+```cpp
+class TextHolder {
+ public:
+   TextHolder(std::string text) : m_text { std::move(text) } {}
+   const std::string& getText() const & { return m_text; }
+   std::string&& getText() const && { return std::move(m_text); }
+ private:
+   std::string m_text;
+};
+```
+
+假设你有以下调用：
+
+```cpp
+TextHolder textHolder { "Hello World" };
+std::cout << textHolder.getText() << std::endl;
+std::cout << TextHolder{ " Hello world!" }.getText() << std::endl;
+std::cout << std::move(textHolder).getText() << std::endl;
+```
+
+第一个对 `getText()` 的调用使用了 `&` 限定符重载，第二个和第三个使用了 `&&` 限定符重载。
+
+### 内联方法
+
+C++可以建议函数或方法的调用不在生成的代码中实现，就像调用独立的代码块那样。相反，编译器应将方法体直接插入调用方法的位置。这个过程称为内联(inline)，具有这一行为的方法称为内敛方法。
+
+注意，`inline` 关键字只是提示编译器，如果编译器认为这会降低性能，则会忽略关键字。
+
+在所有调用了内联函数或内联方法的源文件中，内联方法或内联函数的定义必须有效。如果编写了内联方法，应该将该方法定义与其所在的类的定义放在同一文件中。
+
+> 高级C++编译器不要求把内联方法和定义放在同一文件中。MSVC, GCC, Clang具有此特性。
+
+不使用C++20模块时，如果方法的定义直接放在类定义中，则该方法会隐式标记为 `inline`，即使不使用 `inline` 关键字。对于从模块导出的类，情况不再如此。如果希望这些方法时内联的，则需要使用 `inline` 关键字标记它们。
+
+## 不同的数据成员类型
+
+### `static` 数据成员
+
+不仅要在类定义中列出static成员，还需要再源文件中为其分配内存，通常是定义类方法的那个源文件。在此可以初始化static成员，但注意与普通变量和数据成员不同，默认情况下它们会做零初始化。
+
+#### 内联变量
+
+从C++17开始，可将静态数据成员声明为 `inline`。这样做的好处是不必在源文件中为它们分配空间。下面是一个示例：
+
+```cpp
+export class Spreadsheet {
+  // ...
+ private:
+   static inline size_t ms_counter { 0 };
+};
+```
+
+注意其中的 `inline` 关键字。有了这个类定义，可从源文件中删除下面代码行：
+
+```cpp
+size_t Spreadsheet::ms_counter;
+```
+
+### `const static` 数据成员
+
+如果某个常量只适用于类，应该使用static const（或const static）数据成员，也称为类常量，而不是全局常量。可以在类定义中定义和初始化整型或枚举类型的const static数据成员，而不需要将其指定为内联变量。
+
+例如，你可能想指定电子表格的最大高度和宽度。如果用户想要创建电子表格的高度或宽度大于最大值，就改用最大值。可将最大高度和宽度设置为Spreadsheet类的static const成员：
+
+```cpp
+export class Spreadsheet {
+ public:
+   //...
+   static const size_t MaxHeight { 100 };
+   static const size_t MaxWidth { 100 };
+};
+```
+
+可以在构造函数中使用这些新常量，如下面的代码片段所示：
+
+```cpp
+Spreadsheet::Spreadsheet(size_t width, size_t height)
+  : m_id { ms_counter++ }
+  , m_width { std::min(width, MaxWidth) }
+  , m_height { std::min(height, MaxHeight) }
+{
+  //...
+}
+```
+
+这些常量也可用作构造函数参数的默认值：
+
+```cpp
+export class Spreadsheet {
+public:
+  Spreadsheet(size_t width = MaxWidth, size_t height = MaxHeight);
+  //...
+};
+```
+
+### 引用数据成员
+
+Spreadsheet和SpreadsheetCell这两个类本身并不能组成非常有用的应用程序。为了用代码控制整个电子表格程序，可将这两个类一起放入SpreadsheetApplication类。假设将在需要在每一个Spreadsheet类中存储一个应用程序对象的引用。SpreadsheetApplication类的实现再次并不重要，所以下面的代码简单地将其定义为空类。Spreadsheet类被修改了，以容纳一个名为 `m_theApp` 的新的引用数据类型。
+
+```cpp
+export class SpreadsheetApplication {};
+
+export class Spreadsheet {
+ public:
+   Spreadsheet(size_t width, size_t height, 
+    SpreadsheetApplication& theApp);
+   //...
+ private:
+   //...
+   SpreadsheetApplication& m_theApp;
+};
+```
+
+这个定义将一个SpreadsheetApplication引用作为数据成员添加进来。在此情况下建议使用引用而不是指针，因为Spreadsheet总会指向一个SpreadsheetApplication，而指针无法保证这一点。
+
+> 请注意，存储对应应用程序的引用，仅是为了演示把引用作为数据成员的用法。不建议以这种方式把Spreadsheet类和SpreadsheetApplication类组合在一起。
+
+在构造函数中每个Spreadsheet都得到一个应用程序引用。如果不指向某些事物，引用将无法存在，因此在构造函数的初始化器中必须给 `m_theApp` 指定一个值。
+
+```cpp
+Spreadsheet::Spreadsheet(size_t width, size_t height, SpreadsheetApplication& theApp)
+	: m_id { ms_counter++ }
+	, m_width { std::min(width, MaxWidth) }
+	, m_height { std::min(height, MaxHeight) }
+  , m_theApp { theApp }
+{
+  //...
+}
+```
+
+在拷贝构造函数中也必须初始化这个引用成员。由于Spreadsheet拷贝构造函数委托给非拷贝构造函数，因此这将自动处理。
+
+在初始化引用后，不能更改它的指向。因此无法在赋值运算符中对引用赋值。如果属于这种情况，通常将赋值运算符标记为删除。
+
+最后，引用数据成员也可以被标记为const。例如，你可能决定让Spreadsheet类只包含应用程序对象的const引用，只需要在类定义中将 `m_theApp` 指定为const引用。
+
+```cpp
+export class Spreadsheet {
+ public:
+   Spreadsheet(size_t width, size_t height, 
+    const SpreadsheetApplication& theApp);
+   //...
+ private:
+ 	 //...
+   const SpreadsheetApplication& m_theApp;
+};
+```
+
+## 嵌套类
+
+类定义不仅可包含成员函数和数据成员，还可编写嵌套类和嵌套的结构体、声明类型别名或者创建枚举类型。类中声明的一切内容都具有类作用域。如果声明的内容是public的，那么可在类外使用 `ClassName::` 作用域解析语法访问。
+
+可在类的定义中提供另一个类的定义。例如，假定SpreadsheetCell类实际上是Spreadsheet类的一部分，因此不妨将SpreadsCell类重命名为Cell。可将二者定义为：
+
+```cpp
+export class Spreadsheet {
+ public:
+   class Cell {
+    public:
+      Cell() = default;
+      Cell(double initialValue);
+      //...
+   };
+
+   Spreadsheet(size_t width, size_t height, 
+     const SpreadsheetApplication& theApp);
+   //...
+};
+```
+
+现在Cell类定义位于Spreadsheet类内部，因此在Spreadsheet类外引用Cell必须用 `Spreadsheet::` 作用域限定名称，即使在方法定义时也是如此。例如，Cell的double构造函数应如下所示：
+
+```cpp
+Spreadsheet::Cell::Cell(double initialValue)
+  : m_value { initialValue } {}
+```
+
+甚至在Spreadsheet类方法的返回类型也必须使用这一语法：
+
+```cpp
+Spreadsheet::Cell& Spreadsheet::getCellAt(size_t x, size_t y) {
+  verifyCoordinate(x, y);
+  return m_cells[x][y];
+}
+```
+
+如果在Spreadsheet类中直接完整定义嵌套的Cell类，将使Spreadsheet类的定义略显臃肿。为缓解这一点，只需要在Spreadsheet类中为Cell添加前置声明，然后独立地定义Cell类，如下所示：
+
+```cpp
+export class Spreadsheet {
+ public:
+   class Cell;
+   
+   Spreadsheet(size_t width, size_t height,
+     const SpreadsheetApplication& theApp);
+   //...
+};
+
+class Spreadsheet::Cell {
+ public:
+   Cell() = default;
+   Cell(double initialValue);
+   //...
+};
+```
+
+普通的访问控制也适用于嵌套类定义。如果声明了一个private或protected嵌套类，这个类只能在外围类中使用。嵌套类有权访问外围类中的所有private或protected成员，而外围类却只能访问嵌套类中的public成员。
+
+## 运算符重载
+
+### 使用全局函数重载可交换的运算符
+
+```cpp
+SpreadsheetCell SpreadsheetCell::operator+(const SpreadsheetCell& cell) const {
+  return SpreadsheetCell { getValue() + cell.getValue() };
+}
+```
+
+隐式转换允许 `operator+` 成员方法将SpreadsheetCell对象与int和double值相加。然而，这个运算符不具有互换性。如下所示：
+
+```cpp
+SpreadsheetCell myCell { 4 }, aCell;
+aCell = myCell + 2;     // ok
+aCell = myCell + 4.0;   // ok
+aCell = 2 + myCell;     // fail
+aCell = 4.0 + myCell;   // fail
+```
+
+当SpreadsCell对象在运算符左边时，隐式转换正常进行。但在右边时无法进行。加法必须是可交换的，因此这里存在错误。
+
+但是，如果不局限于某个特定对象的全局 `operator+` 替换类内的 `operator+` 方法，上面的代码就可以运行，如下所示：
+
+```cpp
+SpreadsheetCell operator+(const SpreadsheetCell& lhs,
+	const SpreadsheetCell& rhs) {
+	return SpreadsheetCell { lhs.getValue() + rhs.getValue() };
+}
+```
+
+需要在模块接口文件中声明运算符并将其导出：
+
+```cpp
+export SpreadsheetCell operator+(const SpreadsheetCell& lhs, 
+	const SpreadsheetCell& rhs);
+```
+
+这样，下面的4个加法运算都可以按预期运行：
+
+```cpp
+SpreadsheetCell myCell { 4 }, aCell;
+aCell = myCell + 2;     // ok
+aCell = myCell + 4.0;   // ok
+aCell = 2 + myCell;     // ok
+aCell = 4.0 + myCell;   // ok
+```
+
+### 重载比较运算符
+
+C++20添加了三向比较运算符，也为其他比较运算符(>,<,<=,>=,==,!=)带来了很多变化。
+
+与基本算数运算符一样，6个C++20之前的比较运算符应该是全局函数，这样就可以在运算符的左侧和右侧参数上使用隐式转换。比较运算符都返回bool，当然也可以更改返回类型，但不建议这样做。
+
+当类的数据成员较多时，比较每个数据成员可能比较痛苦。然而，当实现了 `==` 和 `<` 后，可以根据这两个运算符编写其他比较运算符。例如，下面的 `operator>=` 定义使用了 `operator<` 。
+
+```cpp
+bool operator>=(const SpreadsheetCell& lhs, const SpreadsheetCell& rhs) {
+  return !(lhs < rhs);
+}
+```
+
+> 大多数时候，最好不要对浮点数执行相等或不相等测试。
+
+如你所见，需要编写6个单独的函数来支持6个比较运算符。使用当前实现的6个比较函数，可以将SpreadsheetCell与double进行比较，因为double隐式参数转换为SpreadsheetCell。这种隐式转换可能效率低下，因为必须创建临时对象。可以通过显式实现与double进行比较的函数来避免这种情况。对于每个操作符 `<op>`，将需要以下三个重载：
+
+```cpp
+bool operator<op>(const SpreadsheetCell& lhs, const SpreadsheetCell& rhs);
+bool operator<op>(const SpreadsheetCell& lhs, const double& rhs);
+bool operator<op>(const double& lhs, const SpreadsheetCell& rhs);
+```
+
+如果你需要支持所有的比较运算符，需要写很多重复的代码！
+
+现在让我们看看C++20带来了什么。C++20简化了向类中添加比较运算符的支持。首先，对于C++20，建议将 `operator==` 实现为类的成员函数，而不是全局函数。还要注意，添加 `[[nodiscard]]` 属性是个好主意，这样操作符结果就不能被忽略。例如：
+
+```cpp
+[[nodiscard]] bool operator==(const SpreadsheetCell& rhs) const;
+```
+
+在C++20中，单个的 `operator==` 重载就可以使下面的比较生效：
+
+```cpp
+if(myCell == 10) std::cout << "MyCell == 10\n";
+if(10 == myCell) std::cout << "10 == MyCell\n";
+```
+
+编译器会将 `10 == myCell` 重写为 `myCell == 10` ，然后调用其成员函数。此外，通过实现 `operator==`，C++20会自动添加对 `!=` 的支持。
+
+接下来，要实现对全套比较运算符的子好吃，在C++20中，只需要实现一个额外的重载运算符，`operator<=>`。一旦类有运算符 `==` 和 `<=>` 的重载，C++20就会自动为所有6个比较运算符提供支持！对于Spreadsheet类，运算符 `<=>` 如下所示：
+
+```cpp
+[[nodiscard]] std::partial_ordering operator<=>(const SpreadsheetCell& rhs) const;
+```
+
+存储在SpreadsheetCell类中的值是double类型的。浮点类型只有偏序，这就是重载返回 `std::partial_ordering` 的原因。实现非常简单：
+
+```cpp
+std::partial_ordering operator<=>(const SpreadsheetCell& rhs) const {
+  return getValue() <=> rhs.getValue();
+}
+```
+
+通过实现 `operator<=>`，C++20会自动添加对 >,<,<=,>=的支持。所以，只要实现 `operator==` 和 `operator<=>`，SpreadsheetCell类就可以支持所有的比较运算符。
+
+与前面一样，如果希望避免隐式转换对性能的轻微影响，可以为double提供特定的重载。只需要提供以下两个额外的重载运算符作为方法：
+
+```cpp
+[[nodiscard]] std::partial_ordering operator<=>(const double rhs) const;
+[[nodiscard]] bool operator==(const double rhs) const;
+```
+
+#### 编译器生成的比较运算符
+
+注意SpreadsheetCell的 `operator==` 和 `operator<=>` 的实现，它们只是简单比较所有数据车官员。在这种欧冠情况下，可以将它们设为默认。此外，如果是显式默认的 `operator<=>` ，编译器也会自动包含一个默认的 `operator==`。因此，对于SpreadsheetCell类，如果没有显式的double版本的`operator==` 和 `operator<=>` ，只需编写以下单行代码，即可添加所有6个比较运算符的完全支持：
+
+```cpp
+[[nodiscard]] std::partial_ordering operator<=>(
+  const SpreadsheetCell&) const = default;
+```
+
+此外，还可以使用 `auto` 作为 `operator<=>` 的返回类型，编译器将根据数据成员的 `<=>` 运算符的返回类型推断返回类型。如果数据成员不支持 `operator<=>` ，那么返回类型推断将不起作用，需要显式指定返回类型。
+
+显式默认的 `operator<=>` 适用于没有显式的double版本的 `operator==` 和 `operator<=>` 。如果确实添加了这些显式double版本，则添加的是用户声明的 `operator==(double)`。因此，编译器不再自动生成 `operator==(const SpreadsheetCell&)`，因此必须将其显式默认，如下所示：
+
+```cpp
+[[nodiscard]] std::partial_ordering operator<=>(
+  const SpreadsheetCell&) const = default;
+[[nodiscard]] bool operator==(
+  const SpreadsheetCell&) const = default;
+
+[[nodiscard]] bool operator==(double rhs) const;
+[[nodiscard]] std::partial_ordering operator<=>(double rhs) const;
+```
+
+尽量将 `operator<=>` 设置为显式默认，它将于新添加或修改地数据成员保持同步。
+
+只有当 `operator==` 和 `operator<=>` 使用定义操作符的类类型的const引用作为参数时，才可能将 `operator==` 和 `operator<=>` 设置为显式默认。例如，以下操作不起作用：
+
+```cpp
+[[nodiscard]] std::partial_ordering operator<=>(double)const = default;
+```
