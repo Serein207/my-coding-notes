@@ -4,8 +4,14 @@
         "Source": "c:\\users\\20753\\source\\repos\\c-cpp-study-notes\\code\\spreadsheet\\spreadsheet.ixx",
         "ProvidedModule": "spreadsheet",
         "ImportedModules": [
-            "spreadsheet_cell"
+            "spreadsheet_cell",
+            "string_spreadsheet_cell",
+            "double_spreadsheet_cell"
         ],
-        "ImportedHeaderUnits": []
+        "ImportedHeaderUnits": [
+            "D:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.35.32215\\include\\string_view",
+            "D:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.35.32215\\include\\string",
+            "D:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.35.32215\\include\\memory"
+        ]
     }
 }
