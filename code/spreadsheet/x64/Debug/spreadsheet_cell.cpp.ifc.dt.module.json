@@ -1,0 +1,14 @@
+{
+    "Version": "1.1",
+    "Data": {
+        "Source": "c:\\users\\20753\\source\\repos\\c-cpp-study-notes\\code\\spreadsheet\\spreadsheet_cell.cpp",
+        "ProvidedModule": "",
+        "ImportedModules": [
+            "spreadsheet_cell"
+        ],
+        "ImportedHeaderUnits": [
+            "D:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.35.32215\\include\\charconv",
+            "D:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.35.32215\\include\\iostream"
+        ]
+    }
+}
