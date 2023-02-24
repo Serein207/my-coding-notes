@@ -18,9 +18,6 @@
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="spreadsheet_cell.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="spreadsheet.ixx">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -28,6 +25,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="spreadsheet.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="string_spreadsheet_cell.ixx">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="double_spreadsheet_cell.ixx">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

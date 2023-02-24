@@ -144,6 +144,9 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="double_spreadsheet_cell.ixx">
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">CompileAsCppModule</CompileAs>
+    </ClCompile>
     <ClCompile Include="main.cpp">
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">CompileAsCppModuleInternalPartition</CompileAs>
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">CompileAsCppModuleInternalPartition</CompileAs>
@@ -160,9 +163,11 @@
     <ClCompile Include="spreadsheet.ixx">
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">CompileAsCppModule</CompileAs>
     </ClCompile>
-    <ClCompile Include="spreadsheet_cell.cpp" />
     <ClCompile Include="spreadsheet_cell.ixx">
       <EnableModules Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</EnableModules>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">CompileAsCppModule</CompileAs>
+    </ClCompile>
+    <ClCompile Include="string_spreadsheet_cell.ixx">
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">CompileAsCppModule</CompileAs>
     </ClCompile>
   </ItemGroup>
