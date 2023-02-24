@@ -602,6 +602,11 @@ struct Best : std::enable_shared_from_this<Best> // 注：公开继承
   std::shared_ptr<Best> getptr() {
     return shared_from_this();
   }
+  // 无公开构造函数，仅工厂函数，故无法令 getptr 返回 nullptr 。
+  [[nodiscard]] static std::shared_ptr<Best> create() {
+    // 不使用 std::make_shared<Best> ，因为构造函数为私有。
+    return std::shared_ptr<Best>(new Best());
+  }
 private:
   Best() = default;
 };
