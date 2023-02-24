@@ -1,9 +1,7 @@
-关于引用的更详细说明 [知乎链接](https://zhuanlan.zhihu.com/p/99524127)，本文部分参考该文
-
 # Modern C++ 引用
 
----
-***Contents***
+> 关于引用的更详细说明 [知乎链接](https://zhuanlan.zhihu.com/p/99524127)，本文部分参考该文
+
 - [Modern C++ 引用](#modern-c-引用)
   - [左值\&右值](#左值右值)
   - [右值引用 *(rvalue reference)*](#右值引用-rvalue-reference)
@@ -13,8 +11,6 @@
   - [完美转发 `std::forward`](#完美转发-stdforward)
   - [引用折叠 *(reference collapsing)*](#引用折叠-reference-collapsing)
     - [再看点有意思的](#再看点有意思的)
-
----
 
 ## 左值&右值
 * C++11中将右值拓展为 **纯右值 *(prvalue)*** 和 **将亡值 *(xvalue)***
