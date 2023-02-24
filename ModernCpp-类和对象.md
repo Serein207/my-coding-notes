@@ -900,3 +900,64 @@ std::partial_ordering operator<=>(const SpreadsheetCell& rhs) const {
 ```cpp
 [[nodiscard]] std::partial_ordering operator<=>(double)const = default;
 ```
+
+## 继承技术
+
+### `final` 和 `override`
+
+#### `final` 说明符
+
+当在虚函数声明或定义中使用时，`final` 说明符确保函数为虚并指定它不能被派生类覆盖，否则程序非良构（生成编译时错误）。
+
+当在类定义中使用时，`final` 指定此类不能派生子类，否则程序非良构（生成编译时错误）。
+
+#### `override` 关键字
+
+在成员函数的声明或定义中，`override` 说明符确保该函数为虚函数并覆盖某个基类中的虚函数。如果不是这样，那么程序非良构（生成编译错误）。
+
+#### 语法
+
+用于类
+
+```cpp
+class Foo final {};
+
+class Derived : public Base {};   // compile error
+```
+
+用于方法
+
+```cpp
+class Base {
+ public:
+   virtual void foo();
+};
+
+class Derived : public Base {
+ public:
+   void foo() override final;
+};
+
+class Derived1: public Derived {
+ public:
+   void foo() override;   // compile error
+};
+```
+
+### 类型转换
+
+#### `std::bit_cast()`
+
+C++20引入 `std::bit_cast()`，它定义在 `<bit>` 中。这是标准库唯一的强制类型转换，其他的强制转换是C++语言本身的一部分。 `bit_cast()` 与 `reinterpret_cast()` 类似，但它会创建一个指定目标类型的新对象，并按位从源对象复制到此新对象。它有效地将源对象的位解释为目标对象的位。 `bit_cast` 要求源对象与目标对象的大小相同，并且两者都是可复制的。示例如下：
+
+```cpp
+float asFloat { 1.23f };
+auto asUnit { std::bit_cast<unsigned int>(asFloat) };
+if (std::bit_cast<float>(asUnit) == asFloat) { 
+  std::cout << "Roundtrip success." << std::endl; 
+}
+```
+
+> 普通可复制类型是，组成对象的底层字节可以复制到一个数组中（比如char）。如果数组的数据随后被复制回对象，则该对象保持其原始值。
+
+`bit_cast()` 的一个用例是可复制类型的二进制I/O。比如，可以将此类型的各个字节写入文件。当文件读回到内存时，可以使用 `bit_cast()` 正确地解释从文件中读取的字节。
