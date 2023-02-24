@@ -1,0 +1,36 @@
+{
+    "Version": "1.2",
+    "Data": {
+        "Source": "c:\\users\\20753\\source\\repos\\c-cpp-study-notes\\code\\spreadsheet\\spreadsheet.cpp",
+        "ProvidedModule": "spreadsheet",
+        "Includes": [],
+        "ImportedModules": [
+            {
+                "Name": "spreadsheet",
+                "BMI": "C:\\Users\\20753\\source\\repos\\C-Cpp-Study-Notes\\code\\spreadsheet\\x64\\Debug\\spreadsheet.ixx.ifc"
+            },
+            {
+                "Name": "spreadsheet_cell",
+                "BMI": "C:\\Users\\20753\\source\\repos\\C-Cpp-Study-Notes\\code\\spreadsheet\\x64\\Debug\\spreadsheet_cell.ixx.ifc"
+            }
+        ],
+        "ImportedHeaderUnits": [
+            {
+                "Header": "d:\\program files\\microsoft visual studio\\2022\\community\\vc\\tools\\msvc\\14.35.32215\\include\\string_view",
+                "BMI": "C:\\Users\\20753\\source\\repos\\C-Cpp-Study-Notes\\code\\spreadsheet\\x64\\Debug\\string_view_7GN010POW13T4TTK.ifc"
+            },
+            {
+                "Header": "d:\\program files\\microsoft visual studio\\2022\\community\\vc\\tools\\msvc\\14.35.32215\\include\\string",
+                "BMI": "C:\\Users\\20753\\source\\repos\\C-Cpp-Study-Notes\\code\\spreadsheet\\x64\\Debug\\string_XTN9B4I61C1CXMWI.ifc"
+            },
+            {
+                "Header": "d:\\program files\\microsoft visual studio\\2022\\community\\vc\\tools\\msvc\\14.35.32215\\include\\format",
+                "BMI": "C:\\Users\\20753\\source\\repos\\C-Cpp-Study-Notes\\code\\spreadsheet\\x64\\Debug\\format_NLB6084437J4N5WZ.ifc"
+            },
+            {
+                "Header": "d:\\program files\\microsoft visual studio\\2022\\community\\vc\\tools\\msvc\\14.35.32215\\include\\utility",
+                "BMI": "C:\\Users\\20753\\source\\repos\\C-Cpp-Study-Notes\\code\\spreadsheet\\x64\\Debug\\utility_IM1GODXO9MNQXFY2.ifc"
+            }
+        ]
+    }
+}

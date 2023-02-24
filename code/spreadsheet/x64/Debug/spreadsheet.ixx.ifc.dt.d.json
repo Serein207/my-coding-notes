@@ -15,17 +15,7 @@
             "d:\\windows kits\\10\\include\\10.0.19041.0\\ucrt\\corecrt.h",
             "d:\\program files\\microsoft visual studio\\2022\\community\\vc\\tools\\msvc\\14.35.32215\\include\\xtr1common"
         ],
-        "ImportedModules": [
-            {
-                "Name": "spreadsheet_cell",
-                "BMI": "C:\\Users\\20753\\source\\repos\\C-Cpp-Study-Notes\\code\\spreadsheet\\x64\\Debug\\spreadsheet_cell.ixx.ifc.dt"
-            }
-        ],
-        "ImportedHeaderUnits": [
-            {
-                "Header": "d:\\program files\\microsoft visual studio\\2022\\community\\vc\\tools\\msvc\\14.35.32215\\include\\string_view",
-                "BMI": "C:\\Users\\20753\\source\\repos\\C-Cpp-Study-Notes\\code\\spreadsheet\\x64\\Debug\\string_view_C502241B2636F365.ifc.dt"
-            }
-        ]
+        "ImportedModules": [],
+        "ImportedHeaderUnits": []
     }
 }

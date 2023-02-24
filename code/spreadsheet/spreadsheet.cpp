@@ -4,17 +4,19 @@ import <format>;
 import <utility>;
 
 Spreadsheet::Spreadsheet(size_t width, size_t height)
-	: m_width { width }, m_height { height } {
+	: m_id { ms_counter++ }
+	, m_width { std::min(width, MaxWidth) }
+	, m_height { std::min(height, MaxHeight) } {
 	m_cells = new SpreadsheetCell * [m_width];
 	for (size_t i { 0 }; i < m_width; ++i) {
 		m_cells[i] = new SpreadsheetCell[m_height];
 	}
 }
 
-Spreadsheet::Spreadsheet(const Spreadsheet& src) 
+Spreadsheet::Spreadsheet(const Spreadsheet& src)
 	: Spreadsheet { src.m_width, src.m_height } {
 	for (size_t i { 0 }; i < m_width; ++i) {
-		for(size_t j { 0 }; i < m_height; ++j) {
+		for (size_t j { 0 }; i < m_height; ++j) {
 			m_cells[i][j] = src.m_cells[i][j];
 		}
 	}
@@ -56,7 +58,7 @@ void swap(Spreadsheet& first, Spreadsheet& second) noexcept {
 	first.swap(second);
 }
 
-void Spreadsheet::vertifyCoordinate(size_t x, size_t y) const {
+void Spreadsheet::verifyCoordinate(size_t x, size_t y) const {
 	if (x >= m_width) {
 		throw std::out_of_range { std::format("{} must be less than {}.",x,m_width) };
 	}
@@ -66,11 +68,19 @@ void Spreadsheet::vertifyCoordinate(size_t x, size_t y) const {
 }
 
 void Spreadsheet::setCellAt(size_t x, size_t y, const SpreadsheetCell& cell) {
-	vertifyCoordinate(x, y);
+	verifyCoordinate(x, y);
 	m_cells[x][y] = cell;
 }
 
-SpreadsheetCell& Spreadsheet::getCellAt(size_t x, size_t y) const {
-	vertifyCoordinate(x, y);
+const SpreadsheetCell& Spreadsheet::getCellAt(size_t x, size_t y) const {
+	verifyCoordinate(x, y);
 	return m_cells[x][y];
+}
+
+SpreadsheetCell& Spreadsheet::getCellAt(size_t x, size_t y) {
+	return const_cast<SpreadsheetCell&>(std::as_const(*this).getCellAt(x, y));
+}
+
+size_t Spreadsheet::getId() const {
+	return m_id;
 }
