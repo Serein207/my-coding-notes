@@ -1,6 +1,19 @@
 # Modern C++ 类型
 
-### `const_cast`
+> 本节将介绍C++类型转换和自动类型推导的用法。
+
+- [Modern C++ 类型](#modern-c-类型)
+  - [`const_cast`](#const_cast)
+  - [`dynamic_cast` 运行时类型识别 *(RTTI)*](#dynamic_cast-运行时类型识别-rtti)
+  - [`typeid` 运算符和 `type_info` 类](#typeid-运算符和-type_info-类)
+  - [自动类型推导 `auto`](#自动类型推导-auto)
+    - [`auto&` 语法](#auto-语法)
+    - [`auto*` 语法](#auto-语法-1)
+  - [自动类型推导 `decltype`](#自动类型推导-decltype)
+    - [`decltype` 的推导规则](#decltype-的推导规则)
+    - [`decltype` \& `auto`](#decltype--auto)
+
+## `const_cast`
 
 可以使用它为变量添加或取消const属性。这是一个例子：
 
@@ -19,7 +32,7 @@ std::string str{"C++"};
 const std::string& constStr{as_const(str)};
 ```
 
-### `dynamic_cast` 运行时类型识别 *(RTTI)*
+## `dynamic_cast` 运行时类型识别 *(RTTI)*
 
 构建多态时，如果需要调用派生类对象的非虚函数，则需要强转父类指针类型为目标对象派生类指针类型，但必须保证目标对象正确
 ```cpp
@@ -77,7 +90,7 @@ delete d2;
 * `dynamic_cast`可以用于引用，但是，没有与控制很对应的引用值，如果转换请求不正确，会出现`bad_cast`异常（C++11取消异常）；
 
 
-### `typeid` 运算符和 `type_info` 类
+## `typeid` 运算符和 `type_info` 类
 
 ```cpp
 typeid(Type);
@@ -119,7 +132,7 @@ int main() {
 }
 ```
 **output**
-*gcc编译器*
+*g++编译器*
 ```
 typeid(int)=i
 typeid(i)=i
@@ -172,9 +185,7 @@ ra type is A
   ```
 * 假设有表达式`typeid(*ptr)`，当`ptr`是空指针时，如果`ptr`是多态类型，会引发`bad_typeid`异常。
 
----
-
-### 自动类型推导 `auto`
+## 自动类型推导 `auto`
 
 * 在C和C++98中，`auto`关键字用于修饰变量（自动存储的局部变量）
 * 在C++11中，赋予了`auto`新的含义，作为类型指示符，只是编译器在编译时推导`auto`声明的变量的数据类型
@@ -205,7 +216,7 @@ auto result{getFoo()};
 
 这样，可方便地更该函数的返回类型，而不需要更新代码中调用该函数的所有位置。
 
-#### `auto&` 语法
+### `auto&` 语法
 
 使用 `auto` 推断类型时去除了引用和 `const` 限定符。假设有以下函数：
 
@@ -227,7 +238,7 @@ std::string str {"C++"};
 auto result {std::as_count(str)};
 ```
 
-#### `auto*` 语法
+### `auto*` 语法
 
 `auto` 关键字也可用于指针，下面是一个例子：
 
@@ -270,10 +281,9 @@ const auto* const p5{&i};
 
 p5的类型是 `const int* const`。如果省略了 `*`，将不能得到这个结果。
 
-### 自动类型推导 `decltype`
+## 自动类型推导 `decltype`
 
-* 在C++11中，**`decltype` 操作符用于查询表达式的数据类型**
-
+在C++11中，**`decltype` 操作符用于查询表达式的数据类型**
 
 ```cpp
 decltype(expr) var;
@@ -281,7 +291,7 @@ decltype(expr) var;
 
 `decltype`分析表达式并得到它的类型，**不会计算表达式或执行函数**。
 
-**`decltype` 的推导规则**
+### `decltype` 的推导规则
 
 * 如果expr是没用用括号括起来的标识符，则var的类型与该标识符的类型相同，包括`const`等限定符；
 * 如果expr是函数调用，则var的类型与函数返回值相同（函数不能返回`void`，但可以返回`void*`）；
@@ -318,11 +328,11 @@ decltype((func)) drfa = func;        // int (&da)()
 drfa();                              // 执行func()
 ```
 
-* **`decltype`&`auto`**
+### `decltype` & `auto`
 两者都可以完成类型推导，但是有本质区别
 ```cpp
 decltype(func()) da;        // 不需要初始化，不执行函数
 auto aa = func();           // 需要初始化，执行函数
 ```
 
-* 如果需要多次使用`decltype`，可以使用`typedef`和`using`
+如果需要多次使用`decltype`，可以使用`typedef`和`using`
