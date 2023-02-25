@@ -39,8 +39,6 @@
       - [`final` 说明符](#final-说明符)
       - [`override` 关键字](#override-关键字)
       - [语法](#语法)
-  - [类型转换](#类型转换)
-    - [`std::bit_cast()`](#stdbit_cast)
 
 ## 构造函数
 
@@ -983,21 +981,3 @@ class Derived1: public Derived {
    void foo() override;   // compile error
 };
 ```
-
-## 类型转换
-
-### `std::bit_cast()`
-
-C++20引入 `std::bit_cast()`，它定义在 `<bit>` 中。这是标准库唯一的强制类型转换，其他的强制转换是C++语言本身的一部分。 `bit_cast()` 与 `reinterpret_cast()` 类似，但它会创建一个指定目标类型的新对象，并按位从源对象复制到此新对象。它有效地将源对象的位解释为目标对象的位。 `bit_cast` 要求源对象与目标对象的大小相同，并且两者都是可复制的。示例如下：
-
-```cpp
-float asFloat { 1.23f };
-auto asUnit { std::bit_cast<unsigned int>(asFloat) };
-if (std::bit_cast<float>(asUnit) == asFloat) { 
-  std::cout << "Roundtrip success." << std::endl; 
-}
-```
-
-> 普通可复制类型是，组成对象的底层字节可以复制到一个数组中（比如char）。如果数组的数据随后被复制回对象，则该对象保持其原始值。
-
-`bit_cast()` 的一个用例是可复制类型的二进制I/O。比如，可以将此类型的各个字节写入文件。当文件读回到内存时，可以使用 `bit_cast()` 正确地解释从文件中读取的字节。
