@@ -6,14 +6,14 @@ export class SpreadsheetCell {
 
 public:
 	virtual ~SpreadsheetCell() = default;
-	virtual void set(std::string_view) = 0;
-	virtual std::string getString() const = 0;
+	virtual void set(std::string_view) {}
+	virtual std::string getString() const { return ""; }
 	[[nodiscard]] std::partial_ordering operator<=>(
 		const SpreadsheetCell& rhs) const = default;
 
 	enum class Color { Red = 1, Green, Blue, Yellow };
-	void setColor(Color color);
-	Color getColor() const;
+	void setColor(Color color) { m_color = color; }
+	Color getColor() const { return m_color; }
 
 private:
 	Color m_color { Color::Red };
