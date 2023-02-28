@@ -42,13 +42,13 @@ void swap(Spreadsheet::Impl& lhs, Spreadsheet::Impl& rhs) noexcept {
 }
 
 Spreadsheet::Impl::Impl(const SpreadsheetApplication& theApp,
-	size_t width = MaxWidth, size_t height = MaxHeight)
+	size_t width, size_t height)
 	: m_id { ms_counter++ }
 	, m_width { std::min(width, MaxWidth) }
 	, m_height { std::min(height, MaxHeight) }
 	, m_theApp { theApp } {
 	for (size_t i { 0 }; i < m_width; ++i) {
-		m_cells[i] = new SpreadsheetCell*[m_height];
+		m_cells[i] = new SpreadsheetCell[m_height];
 	}
 }
 
@@ -99,11 +99,11 @@ void Spreadsheet::Impl::swap(Impl& other) noexcept {
 }
 
 Spreadsheet::Spreadsheet(const SpreadsheetApplication& theApp,
-	size_t width, size_t height){
+	size_t width, size_t height) {
 	m_impl = std::make_unique<Impl>(theApp, width, height);
 }
 
-Spreadsheet::Spreadsheet(const Spreadsheet& src){
+Spreadsheet::Spreadsheet(const Spreadsheet& src) {
 	m_impl = std::make_unique<Impl>(*src.m_impl);
 }
 
@@ -114,7 +114,7 @@ Spreadsheet::Spreadsheet(Spreadsheet&& src) noexcept {
 
 Spreadsheet::~Spreadsheet() = default;
 
-Spreadsheet& Spreadsheet::operator=(const Spreadsheet& rhs){
+Spreadsheet& Spreadsheet::operator=(const Spreadsheet& rhs) {
 	*m_impl = *rhs.m_impl;
 	return *this;
 }
@@ -138,11 +138,11 @@ void Spreadsheet::setCellAt(size_t x, size_t y, const SpreadsheetCell& cell) {
 }
 
 const SpreadsheetCell& Spreadsheet::getCellAt(size_t x, size_t y) const {
-	m_impl->getCellAt(x, y);
+	return m_impl->getCellAt(x, y);
 }
 
 SpreadsheetCell& Spreadsheet::getCellAt(size_t x, size_t y) {
-	m_impl->getCellAt(x, y);
+	return m_impl->getCellAt(x, y);
 }
 
 size_t Spreadsheet::getId() const {
