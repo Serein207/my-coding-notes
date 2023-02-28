@@ -11,7 +11,7 @@ export class SpreadsheetApplication {};
 
 export class Spreadsheet {
 public:
-	Spreadsheet(const SpreadsheetApplication& theApp, 
+	Spreadsheet(const SpreadsheetApplication& theApp,
 		size_t width = MaxWidth, size_t height = MaxHeight);
 	Spreadsheet(const Spreadsheet& src);
 	Spreadsheet(Spreadsheet&& src) noexcept;	// move constructor
