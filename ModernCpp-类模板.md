@@ -14,6 +14,7 @@
     - [2. 类型参数的默认值](#2-类型参数的默认值)
     - [3. 类模板实参推导（CTAD)](#3-类模板实参推导ctad)
       - [用户定义的推导规则](#用户定义的推导规则)
+  - [方法模板](#方法模板)
 
 ## 编译器处理模板的原理
 
@@ -294,3 +295,40 @@ SpreadsheetCell(const char* t) -> SpreadsheetCell<std::string>;
 ```cpp
 explicit TemplateName(param) -> DeducedTemplateName;
 ```
+
+## 方法模板
+
+C++允许模板化类中的单个方法。这些方法称为 **方法模板(method template)** ，它们可以在类模板中，也可以在非模板化的类中。在编写方法模板时，实际上实在为很多不同的类型编写很多不同版本的方法。在类模板中，方法模板对赋值运算符和拷贝构造函数非常有用。
+
+> **警告**
+>
+> 不能用方法模板编写虚方法和析构函数
+
+考虑最早只有一个模板参数的Grid模板。可实例化很多不同类型的网格，例如int网格和double网格。
+
+```cpp
+Grid<int> myIntGrid;
+Grid<double> myDoubleGrid;
+```
+
+然而，`Grid<int>` 和 `Grid<double>` 的类型是不同的。如果编写的函数接收类型为 `Grid<double>` 的对象，就不能传入 `Grid<int>`。即使int网格中的元素可以赋值到double网格中。也不能将类型为 `Grid<int>` 的对象赋值给 `Grid<double>` 的对象，也不能构造不同类的对象。下面两行代码无法编译：
+
+```cpp
+myDoubleGrid = myIntGrid;                   // compile error
+Grid<double> newDoubleGrid { myIntGrid };   // compile error
+```
+
+问题在于Grid模板的拷贝构造函数和赋值运算符如下所示：
+
+```cpp
+Grid(const Grid& src);
+Grid& operator=(const Grid& src);
+```
+
+它们等同于：
+
+```cpp
+Grid(const Grid<T>& src);
+Grid<T>& operator=(const Grid<T>& src);
+```
+
