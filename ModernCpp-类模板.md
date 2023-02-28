@@ -15,6 +15,8 @@
     - [3. 类模板实参推导（CTAD)](#3-类模板实参推导ctad)
       - [用户定义的推导规则](#用户定义的推导规则)
   - [方法模板](#方法模板)
+    - [带有非类型参数的方法模板](#带有非类型参数的方法模板)
+  - [类模板特化](#类模板特化)
 
 ## 编译器处理模板的原理
 
@@ -331,4 +333,156 @@ Grid& operator=(const Grid& src);
 Grid(const Grid<T>& src);
 Grid<T>& operator=(const Grid<T>& src);
 ```
+
+Grid拷贝构造函数和 `operator=` 都不会接收 `Grid<int>` 作为参数。
+
+幸运的是，在Grid类中添加模板化的拷贝构造函数和赋值运算符，可生成一种将网格类型转换成另一种网格类型的方法，从而修复这个bug。下面是新的Grid类定义：
+
+```cpp
+export template<typename T>
+class Grid {
+public:
+  template <typename E>
+  Grid(const Grid<E>& src);
+
+  template <typename E>
+  Grid<T>& operator=(const Grid<E>& rhs);
+
+  //...
+};
+```
+
+> 不能删除原始拷贝构造函数和拷贝赋值运算符。如果E等于T，那么编译器将不会调用这些新的模板化拷贝构造函数和模板化拷贝复制运算符。
+
+首先检查新的模板化的复制构造函数：
+
+```cpp
+template <typename E>
+Grid(const Grid<E>& src);
+```
+
+看到另一个具有不同类型名称E的模板声明。这个类在类型T上被模板化，这个新的拷贝构造函数又在另一个不同的类型E上被模板化。通过这种双重模板化可将一种类型的网格复制到另一种类型的网格。下面是新的拷贝构造函数的定义：
+
+```cpp
+template <typename T>
+template <typename E>
+Grid<T>::Grid(const Grid<E>& src)
+	:Grid { src.getWidth(),src.getHeight()} {
+	for (size_t i { 0 }; m_width; i++) {
+		for (size_t j { 0 }; j < m_height; j++) {
+			m_cells[i][j] = src.at(i, j);
+		}
+	}
+}
+```
+
+可以看出，必须将声明类模板（T参数）的那一行放在成员模板（E参数）的那一行声明之前。不能像下面这样合并两者：
+
+```cpp
+template <typename T, typename E>
+Grid<T>::Grid(const Grid<E>& src) {
+  ...
+}
+```
+
+注意必须通过公共访问方法 `getWidth()`、`getHeight()`、`at()` 访问src的元素。这是因为复制目标对象与复制来源对象不是同一类型，因此必须使用公共方法。
+
+`swap()` 方法的实现如下所示：
+
+```cpp
+template <typename T>
+void Grid<T>::swap(Grid& other) noexcept {
+	std::swap(m_width, other.m_width);
+	std::swap(m_height, other.m_height);
+	std::swap(m_cells, other.m_cells);
+}
+```
+
+模板化的赋值运算符接收 `const Grid<E>&` 作为参数，但返回 `Grid<T>&`：
+
+```cpp
+template <typename T>
+template <typename E>
+Grid<T>& Grid<T>::operator=(const Grid<E>& rhs) {
+	Grid<T> temp { rhs };
+	swap(temp);
+	return *this;
+}
+```
+
+`swap()` 方法只能交换同类网格，但这是可行的。因为模板化的赋值运算符首先使用模板化的拷贝构造函数，将给定的 `Grid<E>` 转换为 `Grid<T>`（temp），然后使用 `swap()` 方法将 `temp` 变为 `*this`。
+
+
+### 带有非类型参数的方法模板
+
+在之前用于HEIGHT和WIDTH整数模板参数的例子中，一个主要的问题是告诉和宽度称为类型的一部分。因为存在这个限制，所以不能将某个高度和宽度的网格赋值给另一个高度和宽度的网格。如果源数组在任何一个维度上都比目标数组小，那么可以用默认值填充目标数组。有了赋值运算符和拷贝构造函数的方法模板后，完全可以实现这个操作，从而允许对不同大小的网格进行赋值和复制。下面是类定义：
+
+```cpp
+export template <typename T, size_t WIDTH = 10, size_t HEIGHT = 10>
+class Grid {
+public:
+	Grid() = default;
+	virtual ~Grid() = default;
+
+	// explicit default a copy constructor and assignment operator
+	Grid(const Grid& src) = default;
+	Grid<T>& operator=(const Grid<T>& rhs) = default;
+
+	template <typename E, size_t WIDTH2, size_t HEIGHT2>
+	Grid(const Grid<E, WIDTH2, HEIGHT2>& src);
+
+	template <typename E, size_t WIDTH2, size_t HEIGHT2>
+	Grid<T>& operator=(const Grid<E, WIDTH2, HEIGHT2>& rhs);
+
+  void swap(Grid& other) noexcept;
+  
+	//...
+};
+```
+
+这个新定义包含拷贝构造函数符赋值运算符的方法模板，还包含辅助方法 `swap()`。注意，将非模板化的拷贝构造函数和赋值运算符显式设置为默认，语义和大小一样的网格完全一致。
+
+下面是模板化的拷贝构造函数：
+
+```cpp
+template <typename T, size_t WIDTH, size_t HEIGHT>
+template <typename E, size_t WIDTH2, size_t HEIGHT2>
+Grid(const Grid<E, WIDTH2, HEIGHT2>& src) {
+  for (size_t i { 0 }; m_width; i++) {
+		for (size_t j { 0 }; j < m_height; j++) {
+      if(i < WIDTH2 && j < HEIGHT2) {
+			  m_cells[i][j] = src.at(i, j);
+      } else {
+        m_cells[i][j].reset();
+      }
+		}
+	}
+}
+```
+
+注意，该拷贝构造函数只从src在x维度和y维度上分别复制WIDTH和HEIGHT个元素，即使src比WIDTH和HEIGHT大。如果sec在任何一个维度上都比这个指定值小，那么可以使用 `reset()` 方法重置多余的 `std::optional` 对象。
+
+下面是 `swap()` 和 `operator=` 的实现：
+
+```cpp
+template <typename T, size_t WIDTH, size_t HEIGHT>
+void Grid<T, WIDTH, HEIGHT>::swap(Grid& other) noexcept {
+  std::swap(m_cells, other.m_cells);
+}
+
+template <typename T, size_t WIDTH, size_t HEIGHT>
+template <typename E, size_t WIDTH2, size_t HEIGHT2>
+Grid<T>& Grid<T, WIDTH, HEIGHT>::operator=(
+        const Grid<E, WIDTH2, HEIGHT2>& rhs) {
+  Grid<T, WIDTH, HEIGHT> temp {rhs};
+  swap(temp);
+  return *this;
+}
+```
+
+## 类模板特化
+
+
+
+
 
