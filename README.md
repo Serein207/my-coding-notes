@@ -46,3 +46,4 @@ Modern C++ 内容主要摘自《C++20高级编程》和cppreference.com
 5. [lesson5复合类型](l_05.md)
 6. [lesson6内存操作](l_06.md)
 7. [lesson7文件操作](l_07.md)
+8. [C文件操作函数](C文件操作.md)
