@@ -17,6 +17,7 @@
   - [方法模板](#方法模板)
     - [带有非类型参数的方法模板](#带有非类型参数的方法模板)
   - [类模板特化](#类模板特化)
+  - [从类模板派生](#从类模板派生)
 
 ## 编译器处理模板的原理
 
@@ -482,7 +483,106 @@ Grid<T>& Grid<T, WIDTH, HEIGHT>::operator=(
 
 ## 类模板特化
 
+对于特定类型，可以给类模板提供不同的实现。模板的另一个实现称为 **模板特化(template specialization)** 。
+编写一个类模板特化时，必须指明这是一个模板，以及正在为哪种类型编写这个模板。下面是为 `const char*` 特化的Grid的语法。对于这个实现，原始的Grid类模板被移动到一个名为main的模块接口分区中，并且在一个名为string的模块接口分区中。
 
+```cpp
+export module grid:string;
 
+import :main;
 
+export template <>
+class Grid<const char*> {
+public:
+	explicit Grid(size_t width = DefaultWidth,
+		size_t height = DefaultHeight);
+	virtual ~Grid() = default;
 
+	// explicit default a copy constructor and assignment operator
+	Grid(const Grid& src) = default;
+	Grid& operator=(const Grid& rhs) = default;
+
+	// explicit default a move constructor and assignment operator
+	Grid(Grid&& src) = default;
+	Grid& operator=(Grid&& src) = default;
+
+	std::optional<std::string>& at(size_t x, size_t y);
+	const std::optional<std::string>& at(size_t x, size_t y) const;
+
+	size_t getHeight() const { return m_height; }
+	size_t getWidth() const { return m_width; }
+
+	static const size_t DefaultWidth { 10 };
+	static const size_t DefaultHeight { 10 };
+
+	void swap(Grid& other) noexcept;
+
+private:
+	void verifyCoordinate(size_t x, size_t y) const;
+
+	std::vector<std::vector<std::optional<std::string>>> m_cells;
+	size_t m_width { 0 }, m_height { 0 };
+};
+```
+
+注意，在这个特化中不要指定任何类型变量T，而是直接处理 `const char*` 和 `std::string`。
+
+```cpp
+template <>
+class Grid<const char*>
+```
+
+上述语法告诉编译器，这个类是Grid类的 `const char*` 的特化版本。假设没有提供这种语法，那么尝试编写下面的代码：
+
+```cpp
+class Grid
+```
+
+编译器会报错，因为已经有一个名为Grid的类（原始的类模板）。只能通过特化重用这个名字。特化的好处是可以对用户隐藏。当用户创建 `const char*` 类型的Grid时，编译器会使用 `const char*` 特化版本。这些全都由编译器自动完成。
+
+主模块接口文件导入和导出两个模块的接口分区：
+
+```cpp
+export module grid;
+
+export import :main;
+export import :string;
+```
+
+特化一个模板时，并没有“继承”任何代码：特化和派生不同。必须重写类的实现。不要求提供具有相同名称或行为的方法。事实上，可以编写一个和原来的类无关的、完全不同的类。当然，没有正当理由，不应该这么做。下面是 `const char*` 特化版本的方法的实现。与模板定义不同，不必在每个方法定义之前重复 `template<>` 语法：
+
+```cpp
+Grid<const char*>::Grid(size_t width, size_t height) 
+	: m_width { width }, m_height { height } {
+	m_cells.resize(m_width);
+	for (auto& column : m_cells) {
+		column.resize(m_height);
+	}
+}
+
+void Grid<const char*>::verifyCoordinate(size_t x, size_t y) const {
+	if (x >= m_width) {
+		throw std::out_of_range {
+			std::format("{} must be less than {}.", x, m_width) };
+	}
+	if (y >= m_height) {
+		throw std::out_of_range {
+			std::format("{} must be less than {}.", y, m_height) };
+	}
+}
+
+const std::optional<std::string>& Grid<const char*>::at(
+	size_t x, size_t y) const {
+	verifyCoordinate(x, y);
+	return m_cells[x][y];
+}
+
+std::optional<std::string>& Grid<const char*>::at(size_t x, size_t y) {
+	return const_cast<std::optional<std::string>&>(
+		std::as_const(*this).at(x, y));
+}
+```
+
+> *模板高级* 中将继续讨论部分特化等高级特性。
+
+## 从类模板派生

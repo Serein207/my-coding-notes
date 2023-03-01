@@ -27,5 +27,8 @@
     <ClCompile Include="grid-string.ixx">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="game_board.ixx">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
