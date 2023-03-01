@@ -482,7 +482,10 @@ Grid<T>& Grid<T, WIDTH, HEIGHT>::operator=(
 
 ## 类模板特化
 
+对于特定类型，可以给类模板提供不同的实现。模板的另一个实现称为 **模板特化(template specialization)** 。
+编写一个类模板特化时，必须指明这是一个模板，以及正在为哪种类型编写这个模板。下面是为 `const char*` 特化的Grid的语法。对于这个实现，原始的Grid类模板被移动到一个名为main的模块接口分区中，并且在一个名为string的模块接口分区中。
 
+```cpp
 
 
 
