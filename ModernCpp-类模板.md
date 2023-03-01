@@ -368,12 +368,12 @@ Grid(const Grid<E>& src);
 template <typename T>
 template <typename E>
 Grid<T>::Grid(const Grid<E>& src)
-	:Grid { src.getWidth(),src.getHeight()} {
-	for (size_t i { 0 }; m_width; i++) {
-		for (size_t j { 0 }; j < m_height; j++) {
-			m_cells[i][j] = src.at(i, j);
-		}
-	}
+  :Grid { src.getWidth(),src.getHeight()} {
+  for (size_t i { 0 }; m_width; i++) {
+    for (size_t j { 0 }; j < m_height; j++) {
+      m_cells[i][j] = src.at(i, j);
+    }
+  }
 }
 ```
 
@@ -393,9 +393,9 @@ Grid<T>::Grid(const Grid<E>& src) {
 ```cpp
 template <typename T>
 void Grid<T>::swap(Grid& other) noexcept {
-	std::swap(m_width, other.m_width);
-	std::swap(m_height, other.m_height);
-	std::swap(m_cells, other.m_cells);
+  std::swap(m_width, other.m_width);
+  std::swap(m_height, other.m_height);
+  std::swap(m_cells, other.m_cells);
 }
 ```
 
@@ -405,9 +405,9 @@ void Grid<T>::swap(Grid& other) noexcept {
 template <typename T>
 template <typename E>
 Grid<T>& Grid<T>::operator=(const Grid<E>& rhs) {
-	Grid<T> temp { rhs };
-	swap(temp);
-	return *this;
+  Grid<T> temp { rhs };
+  swap(temp);
+  return *this;
 }
 ```
 
@@ -422,22 +422,22 @@ Grid<T>& Grid<T>::operator=(const Grid<E>& rhs) {
 export template <typename T, size_t WIDTH = 10, size_t HEIGHT = 10>
 class Grid {
 public:
-	Grid() = default;
-	virtual ~Grid() = default;
+  Grid() = default;
+  virtual ~Grid() = default;
 
-	// explicit default a copy constructor and assignment operator
-	Grid(const Grid& src) = default;
-	Grid<T>& operator=(const Grid<T>& rhs) = default;
+  // explicit default a copy constructor and assignment operator
+  Grid(const Grid& src) = default;
+  Grid<T>& operator=(const Grid<T>& rhs) = default;
 
-	template <typename E, size_t WIDTH2, size_t HEIGHT2>
-	Grid(const Grid<E, WIDTH2, HEIGHT2>& src);
+  template <typename E, size_t WIDTH2, size_t HEIGHT2>
+  Grid(const Grid<E, WIDTH2, HEIGHT2>& src);
 
-	template <typename E, size_t WIDTH2, size_t HEIGHT2>
-	Grid<T>& operator=(const Grid<E, WIDTH2, HEIGHT2>& rhs);
+  template <typename E, size_t WIDTH2, size_t HEIGHT2>
+  Grid<T>& operator=(const Grid<E, WIDTH2, HEIGHT2>& rhs);
 
   void swap(Grid& other) noexcept;
   
-	//...
+  //...
 };
 ```
 
@@ -450,14 +450,14 @@ template <typename T, size_t WIDTH, size_t HEIGHT>
 template <typename E, size_t WIDTH2, size_t HEIGHT2>
 Grid(const Grid<E, WIDTH2, HEIGHT2>& src) {
   for (size_t i { 0 }; m_width; i++) {
-		for (size_t j { 0 }; j < m_height; j++) {
+    for (size_t j { 0 }; j < m_height; j++) {
       if(i < WIDTH2 && j < HEIGHT2) {
-			  m_cells[i][j] = src.at(i, j);
+        m_cells[i][j] = src.at(i, j);
       } else {
         m_cells[i][j].reset();
       }
-		}
-	}
+    }
+  }
 }
 ```
 
@@ -494,34 +494,34 @@ import :main;
 export template <>
 class Grid<const char*> {
 public:
-	explicit Grid(size_t width = DefaultWidth,
-		size_t height = DefaultHeight);
-	virtual ~Grid() = default;
+  explicit Grid(size_t width = DefaultWidth,
+    size_t height = DefaultHeight);
+  virtual ~Grid() = default;
 
-	// explicit default a copy constructor and assignment operator
-	Grid(const Grid& src) = default;
-	Grid& operator=(const Grid& rhs) = default;
+  // explicit default a copy constructor and assignment operator
+  Grid(const Grid& src) = default;
+  Grid& operator=(const Grid& rhs) = default;
 
-	// explicit default a move constructor and assignment operator
-	Grid(Grid&& src) = default;
-	Grid& operator=(Grid&& src) = default;
+  // explicit default a move constructor and assignment operator
+  Grid(Grid&& src) = default;
+  Grid& operator=(Grid&& src) = default;
 
-	std::optional<std::string>& at(size_t x, size_t y);
-	const std::optional<std::string>& at(size_t x, size_t y) const;
+  std::optional<std::string>& at(size_t x, size_t y);
+  const std::optional<std::string>& at(size_t x, size_t y) const;
 
-	size_t getHeight() const { return m_height; }
-	size_t getWidth() const { return m_width; }
+  size_t getHeight() const { return m_height; }
+  size_t getWidth() const { return m_width; }
 
-	static const size_t DefaultWidth { 10 };
-	static const size_t DefaultHeight { 10 };
+  static const size_t DefaultWidth { 10 };
+  static const size_t DefaultHeight { 10 };
 
-	void swap(Grid& other) noexcept;
+  void swap(Grid& other) noexcept;
 
 private:
-	void verifyCoordinate(size_t x, size_t y) const;
+  void verifyCoordinate(size_t x, size_t y) const;
 
-	std::vector<std::vector<std::optional<std::string>>> m_cells;
-	size_t m_width { 0 }, m_height { 0 };
+  std::vector<std::vector<std::optional<std::string>>> m_cells;
+  size_t m_width { 0 }, m_height { 0 };
 };
 ```
 
@@ -553,36 +553,56 @@ export import :string;
 
 ```cpp
 Grid<const char*>::Grid(size_t width, size_t height) 
-	: m_width { width }, m_height { height } {
-	m_cells.resize(m_width);
-	for (auto& column : m_cells) {
-		column.resize(m_height);
-	}
+  : m_width { width }, m_height { height } {
+  m_cells.resize(m_width);
+  for (auto& column : m_cells) {
+    column.resize(m_height);
+  }
 }
 
 void Grid<const char*>::verifyCoordinate(size_t x, size_t y) const {
-	if (x >= m_width) {
-		throw std::out_of_range {
-			std::format("{} must be less than {}.", x, m_width) };
-	}
-	if (y >= m_height) {
-		throw std::out_of_range {
-			std::format("{} must be less than {}.", y, m_height) };
-	}
+  if (x >= m_width) {
+    throw std::out_of_range {
+      std::format("{} must be less than {}.", x, m_width) };
+  }
+  if (y >= m_height) {
+    throw std::out_of_range {
+      std::format("{} must be less than {}.", y, m_height) };
+  }
 }
 
 const std::optional<std::string>& Grid<const char*>::at(
-	size_t x, size_t y) const {
-	verifyCoordinate(x, y);
-	return m_cells[x][y];
+  size_t x, size_t y) const {
+  verifyCoordinate(x, y);
+  return m_cells[x][y];
 }
 
 std::optional<std::string>& Grid<const char*>::at(size_t x, size_t y) {
-	return const_cast<std::optional<std::string>&>(
-		std::as_const(*this).at(x, y));
+  return const_cast<std::optional<std::string>&>(
+    std::as_const(*this).at(x, y));
 }
 ```
 
 > *模板高级* 中将继续讨论部分特化等高级特性。
 
 ## 从类模板派生
+
+可以从类模板派生。如果一个派生类从模板本身继承，那么这个类也必须是模板。此外，还可以从类模板派生某个特定实例，在这种情况下，派生类不需要是模板。
+
+假设Grid类没有提供足够的棋盘功能，要给棋盘添加 `move()` 方法，允许棋盘上的棋子从一个位置移动到另一个位置。下面是这个GameBoard模板类的定义：
+
+```cpp
+import grid;
+
+export template <typename T>
+class GameBoard :public Grid<T> {
+public:
+  explicit GameBoard(size_t width = Grid<T>::DefaultWidth,
+    size_t height = Grid<T>::DefaultHeight);
+  void move(size_t xSrc, size_t ySrc, size_t xDest, size_t yDest);
+};
+```
+
+这个GameBoard模板派生自Grid模板，因此继承了Grid的所有功能。不需要重写基类方法，也不需要添加拷贝构造、`operator=` 或析构函数，因为在GameBoard中没有任何动态分配的内存。
+
+继承的语法和普通继承一样，区别在于基类是 `Grid<T>` ，而不是 `Grid`。`:public Grid<T>` 语法表明，这个类继承了Grid实例化对类型参数T有意义的所有内容。C++的名称查找规则要求使用 `this` 指针或 `Grid<T>::` 表示出基类模板中的数据成员和方法。
