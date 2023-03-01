@@ -20,6 +20,7 @@ Modern C++ 内容主要摘自《C++20高级编程》和cppreference.com
 10. [智能指针](ModernCpp-智能指针.md)
 11. [模块](ModernCpp-模块.md)
 12. [类模板](ModernCpp-类模板.md)
+13. [函数模板&变量模板](ModernCpp-函数模板-变量模板.md)
 
 ## C++基础语法 目录
 
