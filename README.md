@@ -48,3 +48,4 @@ Modern C++ 内容主要摘自《C++20高级编程》和cppreference.com
 6. [lesson6内存操作](l_06.md)
 7. [lesson7文件操作](l_07.md)
 8. [C文件操作函数](C文件操作.md)
+9. [常用简单算法](常用算法.md)
