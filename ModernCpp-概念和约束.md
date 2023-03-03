@@ -179,7 +179,7 @@ template <typename T>
 concept IsConvertibleToBool = std::convertible_to<T, bool>;
 ```
 
-当然，这些标准概念也可以组合成更具体地概念。例如，下面的概念要求类型T既是默认的也是可复制的：
+当然，这些标准概念也可以组合成更具体的概念。例如，下面的概念要求类型T既是默认的也是可复制的：
 
 ```cpp
 template <typename T>
@@ -189,7 +189,7 @@ concept DefaultAndCopyConstructible =
 
 > **注意**
 >
-> 编写完整且正确地概念并不总是那么容易地。如果可能，尝试使用可用地标准概念或它们地组合来约束类型。
+> 编写完整且正确的概念并不总是那么容易的。如果可能，尝试使用可用的标准概念或它们的组合来约束类型。
 
 ## 类型约束的 `auto`
 

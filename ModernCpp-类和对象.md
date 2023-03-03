@@ -931,7 +931,7 @@ std::partial_ordering operator<=>(const SpreadsheetCell& rhs) const {
 [[nodiscard]] std::partial_ordering operator<=>(double rhs) const;
 ```
 
-尽量将 `operator<=>` 设置为显式默认，它将于新添加或修改地数据成员保持同步。
+尽量将 `operator<=>` 设置为显式默认，它将于新添加或修改的数据成员保持同步。
 
 只有当 `operator==` 和 `operator<=>` 使用定义操作符的类类型的const引用作为参数时，才可能将 `operator==` 和 `operator<=>` 设置为显式默认。例如，以下操作不起作用：
 
