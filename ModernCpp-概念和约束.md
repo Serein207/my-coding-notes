@@ -1,6 +1,6 @@
 # Modern C++ 概念和约束
 
-> C++20引入了 **概念（concepts)**，命名需求来约束类模板和函数模板的模板类型和非类型参数。概念的主要目标是使与模板相关的编译器错误更具有可读性。
+> C++20引入了 **概念(concepts)**，命名需求来约束类模板和函数模板的模板类型和非类型参数。概念的主要目标是使与模板相关的编译器错误更具有可读性。
 >
 > 概念允许编译器在不满足某些类型约束时输出可读的错误消息。因此，为了得到有意义的语义错误，建议编写代码时使用概念来建模语义需求。避免只验证没有任何语义意义的语法方面的概念。例如只检查类型是否支持 `operator+`，这样的概念将只检查语法，而不是语义。 `std::string` 支持 `operator+`，但它与整数的 `operator+` 具有完全不同的含义。另一方面，诸如可排序和可交换的概念是使用概念对某些语义进行建模的好例子。
 
@@ -14,6 +14,12 @@
       - [嵌套requirement](#嵌套requirement)
     - [组合概念表达式](#组合概念表达式)
   - [预定义的标准概念](#预定义的标准概念)
+  - [类型约束的 `auto`](#类型约束的-auto)
+  - [类型约束和函数模板](#类型约束和函数模板)
+    - [约束包含](#约束包含)
+  - [类型约束和类模板](#类型约束和类模板)
+  - [类型约束和类方法](#类型约束和类方法)
+  - [类型约束和模板特化](#类型约束和模板特化)
 
 ## 语法
 
@@ -184,3 +190,188 @@ concept DefaultAndCopyConstructible =
 > **注意**
 >
 > 编写完整且正确地概念并不总是那么容易地。如果可能，尝试使用可用地标准概念或它们地组合来约束类型。
+
+## 类型约束的 `auto`
+
+类型约束可用于约束用自动类型推导定义的变量，在使用函数返回类型推导时约束其返回类型，约束在简化函数模板和泛型lambda表达式中的参数，等等。
+
+例如，下面的代码编译通过，类型被推导为 `int`，它模拟了Incrementable概念：
+
+```cpp
+Incrementable auto value1 { 1 };
+```
+
+但是，下面的操作导致编译错误。该类型被推导为 `std::string`，并且string不建模Incrementable：
+
+```cpp
+Incrementable auto value2 { "abc"s };
+```
+
+## 类型约束和函数模板
+
+在函数模板中使用类型约束有几种不同的语法方式。第一种时使用熟悉的 `template<>` 语法，但不是使用 `typename` （或 `class`），而是使用类型约束。示例如下：
+
+```cpp
+template <std::convertible_to<bool> T>
+void handle(const T& t);
+
+template <Incrementable T>
+void process(const T& t);
+```
+
+使用整型参数调用 `process()` 就可以按预期工作。用 `std::string` 调用它就会导致一个错误，编译器会报错不满足约束，报错内容具有极强的可读性。
+
+另一种语法是使用 `requires` 表达子句，示例如下：
+
+```cpp
+template <typename T> requires std::constant_expression
+void process(const T& t);
+```
+
+`std::constant_expression` 可以是任何产生布尔类型的常量表达式。例如，常量表达式可以是一个概念表达式：
+
+```cpp
+template <typename T> requires Incrementable<T>
+void process(const T& t);
+```
+
+或者一个预定义的标准概念：
+
+```cpp
+template <typename T> requires std::convertible_to<T, bool>
+void process(const T& t);
+```
+
+或者一个 `requires` 表达式（注意两个 `requires` 关键字）：
+
+```cpp
+template <typename T> requires requires(T x) { x++; ++x; }
+void process(const T& t);
+```
+
+或者任何产生布尔值的常量表达式：
+
+```cpp
+template <typename T> requires (sizeof(T) == 4)
+void process(const T& t);
+```
+
+或者是且、或运算的组合：
+
+```cpp
+template <typename T> requires Incrementable<T> && Decrementable<T>
+void process(const T& t);
+```
+
+或者是类型萃取：
+
+```cpp
+template <typename T> requires std::is_arithmetic_v<T>
+void process(const T& t);
+```
+
+也可以在函数头之后指定 `requires` 子句，即后置 `requires` 子句：
+
+```cpp
+template <typename T>
+void process(const T& t) requires Incrementable<T>;
+```
+
+使用类型约束的一种优雅的方式是将本章前面讨论过的简化函数模板的语法和类型约束结合起来，从而产生以下漂亮而因凑的语法。请注意，即使没有模板说明符，`process()` 仍然是一个函数模板：
+
+```cpp
+void process(const Incrementable auto& t);
+```
+
+> **注意**
+> 随着类型约束的引入，函数模板和类模板不受约束的模板参数应该成为过去。对于每个模板类型，都不可避免地需要满足实现中与该类型直接相关的某些约束。因此，应该对其施加类型约束，使编译器在编译时对它进行验证。
+
+### 约束包含
+
+可以使用不同的类型约束重载函数模板。编译器总是使用具有最具体约束的模板；更具体的约束包含/暗示更少的约束。下面是一个实例：
+
+```cpp
+template <typename T> requires std::integral<T>
+void process(const T& t) { std::cout << "integral<T>" << std::endl; }
+
+template <typename T> requires (std::integral<T> && sizeof(T) == 4)
+void process(const T& t) { std::cout << "integral<T> && sizeof(T) == 4" << std::endl; }
+```
+
+假设对 `process()` 有以下调用：
+
+```cpp
+process(int { 1 });
+process(short { 2 });
+```
+
+输出如下：
+
+```
+integral<T> && sizeof(T) == 4
+integral<T>
+```
+
+编译器首先通过规范化约束表达式来解析任何包含。在约束表达式的规范化过程中，所有概念表达式都会被递归拓展它们的定义，知道结果是一个由常量布尔表达式的且/或运算组成的常量表达式。如果编译器可以证明一个规范化的约束表达式可以包含另一个约束表达式，那么它就包含另一个约束表达式。只考虑使用且和或来证明任何包含，不考虑非。
+
+这种包含推理只在语法层面完成，而不是语义层面。例如，`sizeof(T)>4` 在语义上比 `sizeof(T)>=4` 更具体，但在语法上前者并不会包含后者。
+
+但是，需要注意的是，类型萃取在规范化期间不会被拓展。因此，如果有一个预定义的概念和一个类型萃取可用，那么应该使用这个概念而不是这个萃取。例如，使用 `std::integral` 概念来代替 `std::is_integral` 类型萃取。
+
+## 类型约束和类模板
+
+类型约束也可以和类模板一起使用，并使用和函数模板类似的语法。
+
+> 详细示例参考code/grid/game_board.ixx
+
+## 类型约束和类方法
+
+也可以对类模板的特定方法添加额外的约束。
+
+> 详细示例参考code/grid/game_board.ixx
+
+请注意，基于类模板的选择性实例化，仍然可以使用非移动类型的GameBoard类模板，只要不调用它的 `move()` 方法。
+
+## 类型约束和模板特化
+
+可以为类模板编写特化，为函数模板编写重载，从而为特定类型编写不同的实现。也可以为满足特定约束的类型的结合编写特化。
+
+回顾一下[函数模板](ModernCpp-函数模板-变量模板.md)中提到的 `Find()` 函数模板：
+
+```cpp
+template <typename T>
+size_t Find(const T& value, const T* arr. size_t size) {
+  for (size_t i { 0 }; i < size; ++i) {
+    if (srr[i] == value) {
+      return i;
+    }
+  }
+  return NOT_FOUND;
+}
+```
+
+该实现使用 `==` 运算符比较值。通常不建议使用 `==` 比较浮点类型是否相等，而是使用所谓的epsilon检测。下面针对浮点类型的 `Find()` 特化使用了在 `AreEqual()` 辅助函数中实现epsilon检测，而不是 `operator==`：
+
+```cpp
+template <std::floating_point T>
+size_t Find(const T& value, const T* arr, size_t size) {
+  for (size_t i { 0 }; i < size; ++i) {
+    if (AreEqual(arr[i], value)) {
+      return i;
+    }
+  }
+  return NOT_FOUND;
+}
+```
+
+`AreEqual()` 的定义如下，同样也使用类型约束。关于epsilon检测的数学证明这里不做讨论。
+
+```cpp
+template <std::floating_point T>
+bool AreEqual(T x, T y, int precision = 2) {
+  // scale the machine epsilon to the magnitude of the given values and
+  // multiply by required precision.
+  return fabs(x - y) <= std::numeric_limits<T>::epsilon() * fabs(x + y) * precision
+    || fabs(x - y) < std::numeric_limits<T>::min();
+}
+```
