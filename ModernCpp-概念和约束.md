@@ -364,7 +364,7 @@ size_t Find(const T& value, const T* arr, size_t size) {
 }
 ```
 
-`AreEqual()` 的定义如下，同样也使用类型约束。关于epsilon检测的数学证明这里不做讨论。
+`AreEqual()` 的定义如下，同样也使用类型约束。关于epsilon检测的数学推导这里不做讨论。
 
 ```cpp
 template <std::floating_point T>
