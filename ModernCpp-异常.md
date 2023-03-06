@@ -14,6 +14,13 @@
       - [2. 匹配所有异常](#2-匹配所有异常)
     - [未捕获的异常](#未捕获的异常)
     - [`noexcept` 说明符](#noexcept-说明符)
+    - [`noexcept(expression)` 说明符](#noexceptexpression-说明符)
+    - [`noexcept(expression)` 运算符](#noexceptexpression-运算符)
+    - [抛出列表](#抛出列表)
+  - [异常与多态性](#异常与多态性)
+    - [标准异常层次结构](#标准异常层次结构)
+    - [在类层次结构中捕获异常](#在类层次结构中捕获异常)
+    - [编写自己的异常类](#编写自己的异常类)
 
 
 ## 异常机制
@@ -368,8 +375,249 @@ int main() {
 }
 ```
 
-当设置新的 `terminate_handler()` 时，`set_terminate()` 并返回旧的 `terminate_handler()`。`terminate_handler()` 被应用于整个程序，因此最好保存旧的 `terminate_handler()`。上面的示例中不需要重新保存，因为整个程序都需要新的 `terminate_handler()` 。
+当设置新的 `terminate_handler()` 时，`set_terminate()` 返回旧的 `terminate_handler()`。`terminate_handler()` 被应用于整个程序，因此最好保存旧的 `terminate_handler()`。上面的示例中不需要重新保存，因为整个程序都需要新的 `terminate_handler()` 。
 
 使用 `terminate_handler()` 并不是一种非常有效的处理异常的办法。建议分别捕获并处理每个异常，以提供更精确的错误处理。
 
 ### `noexcept` 说明符
+
+默认情况下函数可以抛出任何异常。但可使用 `noexcept` 关键字标记函数，指出它不抛出任何异常。例如，为下面的函数标记了 `noexcept` ，即不允许它抛出任何异常：
+
+```cpp
+void printValues(const std::vector<int>& values) noexcept;
+```
+
+> **注意**
+>
+> 带有 `noexcept` 标记的函数不应该抛出任何异常。
+
+如果一个函数带有 `noexcept` 标记，却以某种方式抛出了异常，C++将调用`terminate()` 来终止应用程序。
+
+在派生类中重写虚方法时，可将重写的虚方法标记为 `noexcept`（即使基类中的版本不是noexcept）。若基类方法是noexcept，则重写的虚方法不应该抛出任何异常。
+
+### `noexcept(expression)` 说明符
+
+当且仅当给定的表达式返回true时，`noexcept(expression)` 说明符才会将函数标记为noexcept。换句话说，`noexcept` 等同于 `noexcept(true)`，而 `noexcept(false)` 则相反。也就是说，标记为 `noexcept(false)` 的方法可以抛出任何异常。
+
+### `noexcept(expression)` 运算符
+
+如果给定的表达式标记为 `noexcept` ，那么 `noexcept(expression)` 运算符将返回true，要么使用 `noexcept` 说明符，要么使用 `noexcept(expression)` 说明符。这会在编译期求值。
+
+看下例：
+
+```cpp
+void f1() noexcept {}
+void f2() noexcept(false) {}
+void f3() noexcept(noexcept(f1())) {}
+void f4() noexcept(noexcept(f2())) {}
+int main() {
+  std::cout << noexcept(f1())
+            << noexcept(f2())
+            << noexcept(f3())
+            << noexcept(f4());
+}
+```
+
+
+输出为 `1010`。
+
+- `noexcept(f1())` 值为true：因为 `f1()` 被noexcept说明符显式地标记。
+- `noexcept(f2())` 值为false：因为 `f2()` 被noexcept(expression)说明符显式地标记。
+- `noexcept(f3())` 值为false：因为只有在 `f1()` 被标记为noexcept时，`f3()` 才被标记为noexcept。
+- `noexcept(f4())` 值为false：因为只有在 `f2()` 被标记为noexcept时，`f4()` 才被标记为noexcept。
+
+### 抛出列表
+
+C++旧版本允许指定函数或方法可抛出的异常，这种规范称为 **抛出列表(throw list)** 或 **异常规范(exception specification)**。
+
+> **警告**
+>
+> 自C++11之后，已不赞成使用异常规范；自C++17之后，已不再支持异常规范。C++20则完全不支持 `throw()`。
+
+## 异常与多态性
+
+可抛出任何类型的异常，然而，类时最有用的异常类型。异常类通常具有层次结构，因此在捕获异常时可使用多态性。
+
+### 标准异常层次结构
+
+下图显示了所有标准异常，包括标准库抛出的标准异常；后续章节将介绍这些异常。
+
+C++标准库中抛出的所有异常都是这个层次结构中的对象。这个层次结构中的每个类都支持 `what()` 方法，这个方法返回一个描述异常的 `const char*` 字符串。可在错误信息中使用这个字符串。
+
+![完整的异常层次结构](./img/exception.png)
+
+有些异常类要求在构造函数中设置 `what()` 返回的字符串。这就必须在 `runtime_error` 和 `invalid_argument` 构造函数中指定字符串的原因。下面是 `readIntegerFile()` 的另一个版本，它也在错误消息中包含文件名：
+
+```cpp
+std::vector<int> readIntegerFile(std::string_view filename) {
+  std::ifstream inputStream { filename.data() };
+  if (inputStream.fail()) {
+    const std::string error { std::format("Unable to open file {}.", filename.data()) };
+    throw std::invalid_argument(error);
+  }
+
+  std::vector<int> integers;
+  int temp;
+  while (inputStream >> temp) {
+    integers.push_back(temp);
+  }
+
+  if(!inputStream.eof()) {
+    const std::string error { std::format("Unable to read file {}.", filename.data()) };
+    throw std::runtime_error(error);
+  }
+
+  return integers;
+}
+```
+
+### 在类层次结构中捕获异常
+
+异常层次结构的一个特性是可利用多态性捕获异常。例如，如果观察下面这两条 `catch` 语句，就可以发现这两条语句除了处理异常类不同之外没有区别：
+
+```cpp
+try {
+  myInt = readIntegerFile(filename);
+} catch (const std::invalid_argument& e) {
+  std::cerr << e.what() << std::endl;
+  return 1;
+} catch (const std::runtime_error& e) {
+  std::cerr << e.what() << std::endl;
+  return 1;
+}
+```
+
+`invalid_argument` 和 `runtime_error` 都是 `exception` 的派生类，因此可使用 `exception` 类的一条catch语句替换这两条catch语句：
+
+```cpp
+try {
+  myInt = readIntegerFile(filename);
+} catch (const std::exception& e) {
+  std::cerr << e.what() << std::endl;
+  return 1;
+}
+```
+
+`exception` 引用的catch语句可与 `exception` 的任何派生类匹配，包括 `invalid_error` 和 `runtime_error`。
+注意捕获的异常在异常层次结构中的层次越高，错误处理就越不具有针对性。通常应该尽可能有针对地捕获异常。
+
+> **警告**
+>
+> 当利用多态捕获异常时，一定要按引用捕获。如果按值捕获异常，就可能发生截断，再次情况下将丢失对象的信息。
+
+catch子句应按限制最多到限制最少的顺序出现。例如，假定要显式捕获 `readIntegerFile()` 的 `invalid_argument` ，就应该让一般的异常与其他类型的异常匹配。正确的做法如下所示：
+
+```cpp
+try {
+  myInt = readIntegerFile(filename);
+} catch (const std::invalid_argument& e) {
+  // take some special action for invalid filenames.
+} catch (const std::runtime_error& e) {
+  std::cerr << e.what() << std::endl;
+  return 1;
+}
+```
+
+第一条catch子句捕获 `invalid_argument` 异常，第二条catch子句捕获其他异常。
+
+### 编写自己的异常类
+
+建议自己编写的异常类从标准的 `exception` 类直接或简洁继承。如果项目中的所有人都遵循这条规则，就可确定程序中的所有异常都是 `exception` 的派生类。
+
+例如，在 `readIntegerFile()` 中，`invalid_argument` 和 `runtime_error` 不能很好地捕获文件打开和读取错误。可为文件错误定义自己类，从泛型类FileError开始：
+
+```cpp
+class FileError : public std::exception {
+public:
+  FileError(std::string& filename) : m_filename {std::move(filename) } {}
+  const char* what() const noexcept override { return m_filename; }
+protected:
+  virtual void setMessage(std::string& message) { m_massage = std::move(message); }
+private:
+  std::string m_filename;
+  std::string m_massage;
+};
+```
+
+编写exception的派生类时，需要重写 `what()` 方法。
+
+`readIntegerFile()` 中的第一种异常情况是无法打开文件。因此，下面编写FileError的派生类FileOpenError：
+
+```cpp
+class FileOpenError : public FileError {
+public:
+  FileOpenError(std::string& filename) : FileError { std::move(filename) } {
+    setMessage(std::format("Unable to open file {}", getFilename()));
+  }
+};
+```
+
+`readIntegerFile()` 中的第二种异常情况是无法正确读取文件。对于这一一场，或许应该包含文件中发生错误的行号，以及 `what()` 返回的文件名。下面是FileError派生类FileReadError：
+
+```cpp
+class FileReadError : public FileError {
+public:
+  FileReadError(std::string& filename) : FileError { std::move(filename) }, m_lineNumber { lineNumber } {
+    setMessage(std::format("Error reading {}, line {}.", getFilename(), lineNumber));
+  }
+
+  virtual size_t getLineNumber() const noexcept { return m_lineNumber; }
+
+private:
+  size_t m_lineNumber { 0 };
+};
+```
+
+当然，为了正确设置行号，需要修改 `readIntegerFile()` 函数，以跟踪读取的行号。下面是使用了新异常的 `readIntegerFile()` 函数：
+
+```cpp
+std::vector<int> readIntegerFile(std::string_view filename) {
+  std::ifstream inputStream { filename.data() };
+  if (inputStream.fail()) {
+    throw FileOpenError { filename };
+  }
+
+  std::vector<int> integers;
+  size_t lineNumber { 0 };
+  while (!inputStream.eof()) {
+    std::string line;
+    getline(inputStream, line);
+    lineNumber++;
+
+    std::istringstream iss { line };
+
+    int temp;
+    while (lineStream >> temp) {
+      integers.push_back(temp);
+    }
+
+    if (!lineStream.eof()) {
+      throw FileReadError { filename };
+    }
+  }
+  return integers;
+}
+```
+
+现在，调用 `readIntegerFile()` 的代码可以使用多态性捕获FileError类型的异常，如下所示：
+
+```cpp
+try {
+  myInt = readIntegerFile(filename);
+} catch (const FileError& e) {
+  std::cerr << e.what() << std::endl;
+  return 1;
+}
+```
+
+如果编写的类的对象将作为异常抛出，对象必须复制或移动。这意味着如果动态分配内存，就必须编写析构函数、拷贝构造函数、拷贝赋值运算符、或移动构造函数和移动赋值运算符。
+
+> **警告**
+>
+> 作为异常抛出的对象至少要复制或移动一次。
+
+异常可能被复制多次，但只有按值（而不是按引用）捕获异常才会如此。
+
+> **注意**
+>
+> 按引用（最好是 `const` 引用捕获异常对象可避免不必要的复制。
