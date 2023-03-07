@@ -33,6 +33,9 @@
     - [内存分配错误](#内存分配错误)
       - [1. 不抛出异常的 `new`](#1-不抛出异常的-new)
       - [2. 定制内存分配失败的行为](#2-定制内存分配失败的行为)
+    - [构造函数中的错误](#构造函数中的错误)
+    - [构造函数的function-try-blocks](#构造函数的function-try-blocks)
+    - [析构函数中的错误](#析构函数中的错误)
 
 
 ## 异常机制
@@ -994,3 +997,136 @@ int main() {
 ```
 
 `std::new_handler` 是函数指针类型的类型别名，`std::set_new_handler()` 将其作为参数。
+
+### 构造函数中的错误
+
+本节以Matrix类作为示例，这个类的构造函数可正确处理异常。注意这个示例使用裸指针 `m_matrix` 来演示问题。实际开发中，应避免使用裸指针，而使用标准库容器！
+
+Matrix类模板的定义如下所示：
+
+```cpp
+export template <typename T>
+class Matrix {
+public:
+  Matrix(size_t width, size_t heigh);
+  virtual ~Matrix();
+private:
+  void cleanup();
+
+  size_t m_width { 0 };
+  size_t m_heigh { 0 };
+  T** m_matrix { nullptr };
+};
+```
+
+Matrix类的实现如下所示。注意对 `new` 的第一个调用并没有用try/catch块保护。第一个 `new` 抛出异常也没有关系。因为构造函数此时还没有跟配任何需要释放的内存。如果后面的 `new` 抛出异常，构造函数必须清理所以已经分配的内存。然而，由于不知道T构造函数本身会抛出什么异常，因此通过 `...` 捕获所有异常，并将捕获的异常嵌套在 `bad_alloc` 异常中。这里简化了 `cleanup()` 方法，因为允许它在 `nullptr` 上调用 `delete`。
+
+```cpp
+template <typename T>
+Matrix<T>::Matrix(size_t width, size_t heigh) {
+  m_matrix = new T*[width] {};  // array is zero-initialized
+
+  // Don't initialize the mWidth and mHeight members in the
+  // ctor-initializer. These should only be initialized when
+  // the above mMatrix allocation succeeds!
+  m_width = width;
+  m_heigh = heigh;
+ 
+  try {
+    for (size_t i { 0 }; i < width; ++i) {
+      m_matrix[i] = new T[heigh];
+    }
+  } catch (...) {
+    std::cerr << "Exception caught in constructor, cleaning up..."
+      << std::endl;
+    cleanup();
+    // nest any caught exception inside a bad_alloc exception
+    std::throw_with_nested(std::bad_alloc());
+  }
+}
+
+template <typename T>
+Matrix<T>::~Matrix() {
+  cleanup();
+}
+
+template <typename T>
+void Matrix<T>::cleanup() {
+  for (size_t i { 0 }; i < m_width; ++i)
+    delete[] m_matrix[i];
+  delete[] m_matrix;
+  m_matrix = nullptr;
+  m_width = m_height = 0;
+}
+```
+
+> **警告**
+>
+> 如果异常离开了构造函数，将永远不会调用对象的析构函数！
+
+可采取如下方式测试Matrix类模板：
+
+```cpp
+class Element {
+private:
+  int m_value;
+};
+
+int main() {
+  Matrix<Element> m { 10, 10 };
+}
+```
+
+如果使用了继承，基类的构造函数在派生类的构造函数之前运行，如果派生类的构造函数抛出一个异常，那么C++会运行任何构建完整的基类的析构函数。
+
+> **注意**
+>
+> C++保证会运行任何构建完整的“子对象”的析构函数。因此，任何没有发生异常的构造函数所对应的析构函数都会运行。
+
+### 构造函数的function-try-blocks
+
+如果在构造函数的ctor-initializer中抛出了一个异常，该如何处理呢？
+本节介绍能捕获这类异常的function-try-blocks。
+
+下面是构造函数的function-try-blocks的基本语法：
+
+```cpp
+MyClass::MyClass()
+try
+  : <ctor-initializer> {
+  //...constructor body...
+} catch (const std::exception& e) {
+  //...
+}
+```
+
+try应该刚好在ctor-initializer之前。catch语句应该在构造函数花括号之后，实际上是将catch语句放在构造函数体的外部。当使用构造函数的function-try-blocks时，要记住如下限制：
+
+- catch语句将捕获任何异常，无论是构造函数体还是ctor-initializer直接或简洁抛出的异常。
+- catch语句必须重新抛出当前异常或抛出一个新异常。如果catch语句没有这么做，运行时将自动重新抛出当前异常。
+- catch语句可访问传递给构造函数的参数。
+- 当catch语句捕获function-try-blocks内的异常时，构造函数已构建的所有对象都会在执行catch语句前销毁。
+- 在catch语句中，不应访问对象成员变量，因为他们在catch语句前就销毁了。但是，如果对象包含非类数据成员，例如裸指针，并且它们在抛出异常之前初始化，就可以访问它们。如果有这样的裸资源，就必须在catch语句中释放它们。
+- 对于function-try-blocks中的catch语句而言，其中包含的函数不能使用 `return` 关键字返回值。构造函数于此无关，因为构造函数没有返回值。
+
+由于有以上限制，构造函数的function-try-blocks只能在少数情况下有用：
+
+- 将ctor-initializer抛出的异常转换为其他异常。
+- 将消息记录到日志文件
+- 释放在抛出异常之前就在ctor-initializer中分配了内存的裸资源。
+
+> **警告**
+>
+> 避免使用function-try-blocks。
+>
+> 通常，仅将裸资源作为数据成员时，才有必要使用function-try-blocks。可使用RAII类来避免使用裸资源。
+
+function-try-blocks并不局限于构造函数，也可用于普通函数。然而，对于普通函数而言，使用try/catch块更简单。
+
+### 析构函数中的错误
+
+必须在析构函数内部处理析构函数引起的所有错误。不应该让析构函数抛出任何异常。
+
+> **警告**
+>
+> 小心不要让任何异常逃离出析构函数。
