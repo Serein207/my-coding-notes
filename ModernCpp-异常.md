@@ -21,6 +21,11 @@
     - [标准异常层次结构](#标准异常层次结构)
     - [在类层次结构中捕获异常](#在类层次结构中捕获异常)
     - [编写自己的异常类](#编写自己的异常类)
+    - [源码位置](#源码位置)
+    - [日志记录的源码位置](#日志记录的源码位置)
+    - [异常的源码位置](#异常的源码位置)
+    - [嵌套异常](#嵌套异常)
+  - [重新抛出异常](#重新抛出异常)
 
 
 ## 异常机制
@@ -621,3 +626,253 @@ try {
 > **注意**
 >
 > 按引用（最好是 `const` 引用捕获异常对象可避免不必要的复制。
+
+### 源码位置
+
+在C++20之前，可以使用以下预处理宏获取源代码中的位置信息：
+
+| 宏         | 描述           |
+| ---------- | -------------- |
+| `__FILE__` | 源文件名       |
+| `__LINE__` | 源文件中的行号 |
+
+此外，每个函数都有一个局部定义的静态字符数组 `__func__`，它包含函数的名字。
+
+C++20在 `<source_location>` 中，以 `std::source_location` 类的形式，为这些C风格的预处理器宏引入了一个适当的面向对象方式的替代品。 
+
+`source_location` 的示例有下面这些公有方法：
+
+| 访问器            | 描述               |
+| ----------------- | ------------------ |
+| `file_name()`     | 返回源文件名       |
+| `function_name()` | 返回函数名         |
+| `line()`          | 返回源文件中的行号 |
+| `column()`        | 返回源文件中的列号 |
+
+使用静态方法 `current()` 可以在方法被调用的源码位置上创建 `source_location` 对象。它是全局单例模式。
+
+### 日志记录的源码位置
+
+`source_location` 类对于日志记录很有用。以前，日志记录通常会涉及写一些C风格的宏，现在使用 `source_location` ，可以编写一个纯C++的函数来记录日志并自动收集所需要的位置数据。如下，一个很好的技巧是定义一个logMessage函数：
+
+```cpp
+void logMessage(std::string_view message,
+  const std::source_location& location =  // line 9
+  std::source_location::current()) {
+    std::cout << std::format("{}({}): {}: {}", location.file_name(),
+    location.line(), location.function_name(), message) << std::endl;
+  }
+}
+
+void foo() {  
+  logMessage("Starting execution of foo()."); // line 18
+}
+
+int main() {
+  foo();
+}
+```
+
+对 `current()` 的调用不会发生在第9行，实际是在 `logMessage()` 被调用的位置，也就是第18行。当执行这个程序时，输出如下所示：
+
+```
+./01_Logging.cpp(17): foo: Starting execution of foo().
+```
+
+### 异常的源码位置
+
+`source_location` 另一个有趣的例子时在自己的异常类中存储抛出异常的位置，如下所示：
+
+```cpp
+class MyException : public std::exception {
+public:
+  MyException(std::string message,
+     std::source_location& location =  std::source_location::current())
+    : m_message { std::move(message) }
+    , m_location { std::move(location) } {}
+  
+  const char* what() const noexcept override { return m_message.c_str(); }
+  virtual const std::source_location& where() const noexcept { return m_location; }
+private:
+  std::string m_message;
+  std::source_location m_location;
+};
+
+void doSomething() {
+  throw MyException { "Throwing MyException." };
+}
+
+int main() {
+  try {
+    doSomething();
+  } catch (const MyException& e) {
+    const auto& location { e.where() };
+    std::cerr << std::format("Caught: '{}' at line {} in {}.", 
+      e.what(), location.line(), location.function_name()) << std::endl;
+  }
+}
+```
+
+输出如下：
+
+```
+Caught: 'Throwing MyException' at line 18 in doSomething.
+```
+
+### 嵌套异常
+
+当处理第一个异常时，可能触发第二个异常，从而要求抛出第二个异常。当抛出第二个异常时，第一个异常的所有信息都会丢失。C++用 **嵌套异常(nested exception)** 提供了解决这一问题的方案，嵌套异常允许将捕获的异常嵌套到新的异常环境。
+
+使用 `std::throw_with_nested()` 抛出第一个异常时，这个异常中嵌套着另一个异常。第二个异常的catch处理程序可使用 `dynamic_cast()` 访问代表第一个异常的nested_exception。
+
+下面的示例演示了嵌套异常的用法。这个示例定义了一个从exception类派生的MyException类，其构造函数接收了一个字符串。
+
+```cpp
+class MyException : public std::exception {
+public:
+  MyException(std::string message) : m_message { std::move(message) } {}
+  virtual const char* what() const noexcept override { return m_message.c_str(); }
+private:
+  std::string m_message;
+};
+```
+
+下面的 `doSomething()` 函数抛出一个 `runtime_error` 异常，这个异常立即被catch处理程序捕获。catch处理程序编写了一条消息，然后使用 `throw_with_nested()` 抛出第二个异常，第一个异常嵌套在其中。注意嵌套异常是自动实现的：
+
+```cpp
+void doSomething() {
+  try {
+    throw std::runtime_error { "Throwing a runtime_error exception" };
+  } catch (const std::runtime_error& e) {
+    std::cout << std::format("{} caught a runtime_error", __func__) << std::endl;
+    std::cout << std::format("{} throwing MyException", __func__) << std::endl;
+    std::throw_with_nested(MyException { "MyException with nested runtime_error" });
+  }
+}
+```
+
+`std::throw_with_nested()` 函数工作方式是抛出一个未命名的编译器生成的新类型，这个类型由nested_exception和MyException派生而来。nested_exception基类的另一个默认构造函数通过调用 `std::current_exception()` 自动捕获正在处理的异常，并将其存储在 `std::exception_ptr` 中。exception_ptr是一种类似指针的类型，可以存储空指针或 `current_exception()` 抛出和捕获的异常对象的指针。exception_ptr的实例可以通过不同的线程传递给函数（通常是值传递）。
+
+最后，下面的代码演示了如何处理具有嵌套异常的异常。这段代码有一个处理MyException异常的catch处理程序。当捕获到这类异常时，会编写一条消息，然后使用 `dynamic_cast()` 访问嵌套的异常。如果内部没有嵌套异常，结果为空指针。如果有嵌套异常，会调用nested_exception的 `rethrow_nested()` 方法。这样会再次抛出嵌套异常，这一异常可在另一个try/catch块中捕获。
+
+```cpp
+try {
+  doSomething();
+} catch (const MyException& e) {
+  std::cout << std::format("{} caught MyException: {}", __func__, e.what()) << std::endl;
+
+  const auto* nested { dynamic_cast<const std::nested_exception*>(&e) };
+  if (nested) {
+    try {
+      nested->std::rethrow_nested();
+    } catch (const std::runtime_error& e) {
+      std::cout << std::format("  Nested exception: {}", e.what()) << std::endl;
+    }
+  }
+}
+```
+
+输出如下：
+
+```
+doSomething caught a runtime_error
+doSomething throwing MyException
+main caught MyException: MyException with nested runtime_error
+  Nested exception: MyException with nested runtime_error
+```
+
+如果想要检测嵌套异常，就不得不经常执行 `dynamic_cast()` ，因此标准库提供了一个名为 `std::rethrow_if_nested()` 的辅助函数，其用法如下所示：
+
+```cpp
+try {
+  doSomething();
+} catch (const MyException& e) {
+  std::cout << std::format("{} caught MyException: {}", __func__, e.what()) << std::endl;
+  try {
+    std::rethrow_if_nested(e);
+  } catch (const std::runtime_error& e) {
+    std::cout << std::format("  Nested exception: {}", e.what()) << std::endl;
+  }
+}
+```
+
+> `throw_with_nested()`、`nested_exception`、`rethrow_if_nested()`、`current_exception()`、`exception_ptr` 都定义在 `<exception>` 中。
+
+## 重新抛出异常
+
+可以使用 `throw` 关键字重新抛出当前异常，如下所示：
+
+```cpp
+void g() { throw std::invalid_argument { "Some exception" }; }
+
+void f() {
+  try {
+    g();
+  } catch (const std::invalid_argument& e) {
+    std::cout << "caught in f: " << e.what() << std::endl;
+    throw;  // rethrow
+  }
+}
+
+int main() {
+  try {
+    f();
+  } catch (const std::invalid_argument& e) {
+    std::cout << "caught in main: " << e.what() << std::endl;
+  }
+}
+```
+
+输出如下：
+
+```
+caught in f: Some exception
+caught in main: Some exception
+```
+
+或许你认为，可使用 `throw e;` 重新抛出异常，但事实并非如此，因为那样会截断异常对象。例如，假如修改 `f()` 以捕获 `std::exception` 异常，修改 `main()` 以捕获 `std::exception` 和 `std::invalid_argument` 异常：
+
+```cpp
+void g() { throw std::invalid_argument { "Some exception" }; }
+
+void f() {
+  try {
+    g();
+  } catch (const std::exception& e) {
+    std::cout << "caught in f: " << e.what() << std::endl;
+    throw;  // rethrow
+  }
+}
+
+int main() {
+  try {
+    f();
+  } catch (const std::invalid_argument& e) {
+    std::cout << "invalid_argument caught in main: " << e.what() << std::endl;
+  } catch (const std::exception& e) {
+    std::cout << "exception caught in main: " << e.what() << std::endl;
+  }
+}
+```
+
+`invalid_argument` 从 `exception` 派生而来。上述代码的输出与我们的预期相符：
+
+```
+caught in f: Some exception
+invalid_argument caught in main: Some exception
+```
+
+现在尝试将 `f()` 中的重新抛出异常更改为 `throw e;` 语句，输出如下所示：
+
+```
+caught in f: Some exception
+exception caught in main: Some exception
+```
+
+`main()` 似乎在捕获 `exception` 对象而非 `invalid_argument` 对象。这是由于 `throw e;` 语句会执行截断操作，将 `invalid_argument` 对象截断为 `std::exception` 对象。
+
+> **警告**
+>
+> 始终使用 `throw;` 重新抛出异常。永远不要试图使用 `throw e;` 重新抛出 `e` !
+
+
