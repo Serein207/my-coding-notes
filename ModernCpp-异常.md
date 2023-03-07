@@ -26,6 +26,13 @@
     - [异常的源码位置](#异常的源码位置)
     - [嵌套异常](#嵌套异常)
   - [重新抛出异常](#重新抛出异常)
+  - [堆栈的释放和清理](#堆栈的释放和清理)
+    - [使用智能指针](#使用智能指针)
+    - [捕获、清理并重新抛出](#捕获清理并重新抛出)
+  - [常见的错误处理问题](#常见的错误处理问题)
+    - [内存分配错误](#内存分配错误)
+      - [1. 不抛出异常的 `new`](#1-不抛出异常的-new)
+      - [2. 定制内存分配失败的行为](#2-定制内存分配失败的行为)
 
 
 ## 异常机制
@@ -875,4 +882,115 @@ exception caught in main: Some exception
 >
 > 始终使用 `throw;` 重新抛出异常。永远不要试图使用 `throw e;` 重新抛出 `e` !
 
+## 堆栈的释放和清理
 
+
+当某段代码抛出一个异常时，会在堆栈中寻找catch处理程序。catch处理程序可以是在堆栈上的0个或多个函数调用。当发现一个catch处理程序时，堆栈会释放多有中间堆栈帧，直接跳到定义catch处理程序的堆栈层。**堆栈释放(stack unwinding)** 意味着调用所有局部作用域的名称的析构函数，并忽略在当前执行点之前的每个函数的所有代码。
+
+然而当释放堆栈时，并不释放指针变量，也不会执行其他清理工作，会发生内存泄漏。堆栈释放会正确地销毁所有局部变量。
+
+### 使用智能指针
+
+如果基于堆栈的内存分配不可用，就应使用智能指针。在处理异常时，智能指针可使编写的代码自动防止内存或资源的泄漏。无论什么时候销毁智能指针对象，都会释放底层资源。
+
+> **注意**
+>
+> 使用智能指针或其他RAII对象时，永远不必考虑释放底层的资源：RAII对象的析构函数会自动完成这一操作，无论是正常退出函数，还是抛出异常推出函数，都是如此。
+
+
+### 捕获、清理并重新抛出
+
+避免内存和资源泄漏的另一种技术是针对每个函数，捕获可能抛出的所有异常，执行必要的清理，并重新抛出异常，供堆栈中更高层的函数处理。
+
+> **警告**
+>
+> 智能指针或其他RAII是比捕获、清理和重新抛出技术更好的解决方案。
+
+## 常见的错误处理问题
+
+本章讨论使用异常时最常见的错误处理问题，但不使用异常的程序也会涉及这些问题。
+
+### 内存分配错误
+
+C++提供了处理内存错误的多种不同方式，如果无法分配内存，`new` 和 `new[]` 的默认行为是抛出 `bad_alloc` 异常，这种异常类型在 `<new>` 中定义。应该捕获并正确处理这些异常。
+
+不可能把对 `new` 和 `new[]` 的调用都放在try/catch块中，但至少在分配大块内存时应这么做。下例演示了如何捕获内存分配异常：
+
+```cpp
+int* ptr { nullptr };
+size_t integerCount { std::numeric_limits<size_t>::max() };
+std::cout << std::format("Trying to allocate memory for {} integers.", integerCount) << std::endl;
+
+try {
+  ptr = new int[integerCount];
+} catch (const std::bad_alloc& e) {
+  auto location { std::source_location::current() };
+  std::cerr << std::format("{} ({}): Unable to allocate memory: {}",
+    location.file_name(), location.line(), e.what()) << std::endl;
+  return;
+}
+```
+
+另一个考虑是记录错误时可能尝试重新分配内存。如果 `new` 执行失败，可能没有记录错误消息的足够内存。
+
+#### 1. 不抛出异常的 `new` 
+
+如果不喜欢异常，可回到旧的C模式：在这种模式下，如果无法分配内存，内存分配例程将返回一个空指针。C++提供了 `new` 和 `new[]` 的nothrow版本，如果内存分配失败，将返回 `nullptr`，而不是抛出异常。使用 `new(nothrow)` 可做到这一点，如下所示：
+
+```cpp
+int* ptr { new(nothrow) int[integerCount] };
+if (ptr == nullptr) {
+  auto location { std::source_location::current() };
+  std::cerr << std::format("{} ({}): Unable to allocate memory: {}",
+    location.file_name(), location.line(), e.what()) << std::endl;
+  return;
+}
+```
+
+#### 2. 定制内存分配失败的行为
+
+C++允许指定new handler回调函数。如果存在new handler，当内存分配失败时，内存分配例程会调用new handler而不是抛出异常。如果new handler返回，内存分配例程试着再次分配内存，会变成无限循环，除非new handler用下面的3个选项之一改变这种情况：
+
+- **提供更多的可用内存**  提供空间的技巧之一是在程序启动时分配一大块内存，然后在new handler中释放这块内存。例如，当遇到内存分配错误时，保存用户状态，这样旧不会有工作丢失。
+- **抛出异常** C++标准指出，如果new handler抛出异常，那么必须是 `bad_alloc` 异常或者派生于 `bad_alloc` 的异常。
+  - **编写和抛出 `document_recovery_alloc` 异常** 这种异常从 `bad_alloc` 继承而来。可在应用程序的某个地方捕获这种异常，然后触发文档保存操作，并重启应用程序。
+  - **编写和抛出派生于 `bad_alloc` 的 `please_terminate_me` 异常** 在顶层函数中，例如 `main()` 可捕获这种异常，然后触发文档保存操作，并重启应用程序。
+  - **设置不同的new handler** 从理论上讲，可使用一系列new handler，每个都试图分配内存，并在失败时设置一个不同的new handler，然而这种情形过于复杂，并不实用。
+
+如果有一些内存会分配失败，但又不想调用new handler，那么在调用new之前，只需要将新的new handler重新设置为默认值 `nullptr`。
+
+调用在 `<new>` 中声明的 `set_new_handler` ，从而设置new handler。下面是一个记录错误消息并重新抛出异常的new handler示例：
+
+```cpp
+class please_terminate_me : public std::bad_alloc {};
+
+void myNewHandler() {
+  std::cerr << "Unable to allocate memory." << std::endl;
+  throw please_terminate_me();
+}
+```
+
+new handler不能有参数，也不能返回值。可采用以下方式设置new handler:
+
+```cpp
+int main() {
+  try {
+    // set the new new_handler and save the old one
+    std::new_handler oldHandler { std::set_new_handler(myNewHandler) };
+
+    // generate allocation error
+    size_t numInt { std::numeric_limits<size_t>::max() };
+    int* ptr { new int[numInt] };
+
+    // reset the old new_handler
+    std::set_new_handler(oldHandler);
+  } catch (const please_terminate_me&) {
+    auto location { std::source_location::current() };
+    std::cerr << std::format("{}({}): Terminating program.", 
+      location.file_name(), location.line()) << std::endl;
+    return 1;
+  }
+}
+```
+
+`std::new_handler` 是函数指针类型的类型别名，`std::set_new_handler()` 将其作为参数。
