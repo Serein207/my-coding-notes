@@ -224,11 +224,11 @@ void process(const T& t);
 另一种语法是使用 `requires` 表达子句，示例如下：
 
 ```cpp
-template <typename T> requires std::constant_expression
+template <typename T> requires constant_expression
 void process(const T& t);
 ```
 
-`std::constant_expression` 可以是任何产生布尔类型的常量表达式。例如，常量表达式可以是一个概念表达式：
+constant_expression可以是任何产生布尔类型的常量表达式。例如，常量表达式可以是一个概念表达式：
 
 ```cpp
 template <typename T> requires Incrementable<T>
