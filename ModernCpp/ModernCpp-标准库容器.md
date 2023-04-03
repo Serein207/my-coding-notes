@@ -4,6 +4,9 @@
 
 - [Modern C++ 标准库容器](#modern-c-标准库容器)
   - [`span`](#span)
+  - [哈希函数](#哈希函数)
+  - [`unordered_map`](#unordered_map)
+    - [`unordered_map` 示例：电话簿](#unordered_map-示例电话簿)
 
 
 ## `span`
@@ -97,3 +100,120 @@ void print(span<const int> values) {
 >
 > 在编写接受 `const vector<T>&` 的函数时，考虑使用 `span<const T>` 作为替换。这样函数就可以处理来自vector, array, C风格数组等的数据序列的视图和子视图。
 
+## 哈希函数
+
+哈希函数的结果未必是唯一的。两个或多个键哈希到同一个桶索引，就称为**冲突(collision)** 。当使用不同键得相同的哈希值，或把不同的哈希值转换为同一个桶索引时，就会发生冲突。可采用多种方法处理冲突，例如 **二次重哈希(quadratic re-hashing)** 和 **线性链(linear chaining)** 等方法。
+
+哈希函数的选择非常重要。不产生冲突的哈希函数称为“完美哈希”。完美哈希的查找时间是常量；常规的哈希查找时间接近1，与怨怒是数量无关。随着冲突的增加，查找时间会增加，性能会降低。
+
+C++标准为所有基本数据类型提供了哈希函数，还为error_code, error_condition, optional, variant, bitset, unique_ptr, shared_ptr, type_index, string, string_view, vector\<bool\>, thread::id提供了哈希函数。如果使用的键类型没有可用的标准哈希函数，就必须实现自己的哈希函数。
+
+下面演示如何编写自定义的哈希函数。代码定义了一个类IntWrapper，它仅封装了一个整数。还提供了 `operator==`，因为这是在无效关联容器中使用键所必须的。
+
+```cpp
+class IntWrapper {
+public:
+  IntWrapper(int i) : m_wrapperInt { i } {}
+  int getValue() const { return m_wrapperInt; }
+  bool operator==(const IntWrapper& other) const = default; // =default since C++20
+private:
+  int m_wrapperInt;
+};
+```
+
+为给IntWrapper类编写哈希函数，应该先给IntWrapper编写 `std::hash` 模板的特例。 `std::hash` 模板在 `<functional>` 头文件中定义。这个特例需要实现函数调用运算符，计算并返回给定IntWrapper实例的哈希值。对于本例，请求被简单地转发给了整数的标准哈希函数：
+
+```cpp
+namespace std {
+template<> struct hash<IntWrapper> {
+  size_t operator()(const IntWrapper& wrapper) const {
+    return std::hash<int>()(wrapper.getValue());
+  }
+};
+}
+```
+
+注意，一般不允许把任何内容放在std命名空间中，但std类模板的特例是这条规则的例外。如果类包含多个数据成员，就需要在计算哈希时考虑所有数据成员，这不是这里要讨论的内容。
+
+## `unordered_map`
+
+unordered_map容器在 `<unordered_map>` 头文件中定义，是一个类模板，如下所示：
+
+```cpp
+template <class Key,
+          class T,
+          class Hash = hash<Key>,
+          class Pred = std::equal_to<Key>,
+          class Alloc = std::allocator<std::pair<const Key, T>>>
+class unordered_map;
+```
+
+总共有5个模板参数：键类型、值类型、哈希类型、判等比较类型和分配器类型。
+
+与普通的map一样，unordered_map中的所有键都应该是唯一的。除此之外，它有一些哈希专用方法。例如，`load_factor()` 返回每一个桶的平均元素数，以反映冲突的次数。`bucket_count()` 方法返回容器的桶的数量。还提供了local_iterator和const_local_iterator，用于遍历单个桶中的元素，但是不能用来遍历多个桶。`bucket(key)` 方法返回指定元素的桶的索引，`begin(n)` 返回引用索引为n的桶中第一个元素的local_iterator。`end(n)` 返回引用索引为n的桶中最后一个元素之后的local_iterator。
+
+### `unordered_map` 示例：电话簿
+
+下面的示例将使用 `unordered_map` 表示电话簿。使用人名表示键，电话号码则是与键相关的值。
+
+```cpp
+void printMap(const auto& m) {    // C++20 abbreviated function template
+  for (const auto& [key, value] : m) {
+    std::cout << std::format("{} (Phone: {})", key, value) << '\n';
+  }
+  std::cout << "-------" << '\n';
+}
+
+int main() {
+  // create a hash table
+  std::unordered_map<std::string, std::string> phoneBook {
+    {"Marc G.", "123-456789"},
+    { "Scott K.", "654-987321" } };
+  printMap(phoneBook);
+
+  // add/remove some phone numbers
+  phoneBook.insert(std::make_pair("John D.", "321-987654"));
+  phoneBook["Johan G."] = "963-258147";
+  phoneBook["Freddy K."] = "999-256256";
+  phoneBook.erase("Freddy K.");
+  printMap(phoneBook);
+
+  // find the bucket index for a specific key
+  const size_t bucket{ phoneBook.bucket("Marc G.") };
+  std::cout << std::format("Marc G. is in bucket {} containing the following {} names:",
+    bucket, phoneBook.bucket_size(bucket)) << '\n';
+  // get begin and end iterators for the elements in this bucket
+  // "auto" is here. The complier deduces the type of
+  // both as unordered_map<string, string>::const_local_iterator
+  auto localBegin{ phoneBook.cbegin(bucket) };
+  auto localEnd{ phoneBook.cend(bucket) };
+  for (auto iter{ localBegin }; iter != localEnd; ++iter) {
+    std::cout << std::format("\t{} (Phone: {})", iter->first, iter->second) << '\n';
+  }
+  std::cout << "-------" << '\n';
+
+  // print some statistics about the hash table
+  std::cout << std::format("There are {} buckets.", phoneBook.bucket_count()) << '\n';
+  std::cout << std::format("Average number of elements in a bucket is {}.",
+    phoneBook.load_factor()) << '\n';
+}
+```
+
+**output**
+
+```
+Scott K. (Phone: 654-987321)
+Marc G. (Phone: 123-456789)
+-------
+Scott K. (Phone: 654-987321)
+Marc G. (Phone: 123-456789)
+Johan G. (Phone: 963-258147)
+John D. (Phone: 321-987654)
+-------
+Marc G. is in bucket 1 containing the following 2 names:
+        Scott K. (Phone: 654-987321)
+        Marc G. (Phone: 123-456789)
+-------
+There are 8 buckets.
+Average number of elements in a bucket is 0.5.
+```
