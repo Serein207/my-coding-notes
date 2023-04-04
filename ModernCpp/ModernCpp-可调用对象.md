@@ -840,7 +840,7 @@ findMatches(values1, values2,
 
 可以为lambda表达式的参数使用自动类型推导，而不是显式地为它们指定具体类型。若要为参数指定自动类型推导，只需要简单地将类型指定为auto，类型推到规则与模板参数推导规则相同。
 
-下面的示例定义了名为areEqual()的泛型lambda表达式，这个lambda表达式用作本章前面提到过的findMatches()函数的回调：
+下面的示例定义了名为areEqual的泛型lambda表达式，这个lambda表达式用作本章前面提到过的findMatches()函数的回调：
 
 ```cpp
 // define a generic lambda expression to find equal values.
