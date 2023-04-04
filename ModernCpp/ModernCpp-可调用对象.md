@@ -19,8 +19,16 @@
         - [否定器](#否定器)
         - [调用成员函数](#调用成员函数)
   - [lambda表达式](#lambda表达式)
+    - [语法](#语法)
+    - [lambda表达式作为参数](#lambda表达式作为参数)
+    - [泛型lambda表达式](#泛型lambda表达式)
+    - [lambda捕获表达式](#lambda捕获表达式)
+    - [模板化lambda表达式](#模板化lambda表达式)
+    - [lambda表达式作为返回类型](#lambda表达式作为返回类型)
+    - [不求值表达式中的lambda表达式](#不求值表达式中的lambda表达式)
+    - [默认构造、拷贝和赋值](#默认构造拷贝和赋值)
     - [lambda函数递归](#lambda函数递归)
-    - [lambda 能否返回一个 lambda](#lambda-能否返回一个-lambda)
+  - [调用](#调用)
 
 ## 函数指针
 
@@ -594,250 +602,292 @@ printMatchingStrings(values, not_fn(mem_fn(&string::empty)));
 
 `not_fn(mem_fn())` 生成一个函数对象，作为printMatchingStrings()的回调函数。每次调用它时，会对其参数调用empty()方法，并反转结果。
 
+> **注意**
+>
+> mem_fn()并不是实现所需行为的最直观方法，建议使用lamb发表达式，以一种更具可读性方式实现它。
 
 ## lambda表达式
 
-总算讲到lambda函数了，相信你也不会回头看之前写过的lambda函数的包装和绑定方法了，所以我会在这里完整地写出来
+lambda表达式可以接收参数，可返回值，可模板化，可通过值或引用从其闭包范围内访问变量，很灵活。
 
-C++11新增lambda函数后，可以解决很多之前无法解决的问题
+### 语法
 
-lambda函数的特点是：距离近，简洁，高效，功能强大 ~~和优雅（我加的~~
+从一个简单的lambda表达式开始，下面的示例定义了一个lambda表达式，只将字符串写入控制台。lambda表达式以捕获列表 `[]` 方括号开始，后面跟着包含lambda表达式主体的花括号 `{}`，lambda表达式赋值给auto类型变量basicLambda，第二行使用普通函数调用语法执行lambda表达式。
 
-我们先来写一个简单的lambda函数
 ```cpp
-[](const int& i) -> void { std::cout << i << std::endl; };
+auto basicLambda { []{ cout << "Hello from lambda" << endl; } };
+basicLambda();
 ```
-看上去并不够简洁...吗？下面我们来试着使用lambda函数
 
-调用STL算法 `std::for_each` 时，我们可以向第三个参数传入普通函数或仿函数
+**output**
+
+```
+Hello from lambda
+```
+
+编译器自动将任何lambda表达式转换为函数对象，也成为lambda闭包，它忽具有唯一的编译器生成的命名。在本例中，lambda表达式被转换成行为类似于下面函数对象的函数对象，注意函数调用运算符是一个const方法，返回类型是auto，方便编译器根据方法体自动推导出返回类型。
+
 ```cpp
-//普通函数
-void show(const int& v) {
-    std::cout << v << std::endl;
-}
+class CompilerGeneratedName {
+public:
+  auto operator()() const { cout << "Hello from lambda" << endl; }
+};
+```
 
-//仿函数
-struct Show {
-  void operator()(const int& v){
-    std::cout << e << std::endl;
+编译器生成的lambda闭包名字可以是一些奇特的名字，例如 `__Lambda_17Za`，无法知道这个名字，但幸运的是不需要知道它的名字。
+
+lambda表达式可以接收参数，就像普通函数一样，下面是一个名为value的参数的示例：
+
+```cpp
+auto parametersLambda {
+  [](int value){ cout << "The value is " << value << endl; } };
+parameterLambda(42);
+```
+
+如果lambda表达式不接受任何参数，可以指定空括号或者直接省略括号。
+
+在编译器为此lambda表达式生成的函数对象中，参数被简单地转换为重载函数调用运算符的参数：
+
+```cpp
+class ComplierGeneratedName {
+public:
+  auto operator()(int value) const {
+    cout << "The value is " << value << endl;
   }
 };
-
-int main() {
-  std::vector<int> v = {1, 2, 3};
-  std::for_each(v.begin(), v.end(), show);
-  std::for_each(v.begin(), v.end(), Show());
-}
 ```
-  
-~~对象大一统理论后，~~ lambda函数同样也可以作为参数传入
-```cpp
-std::vector<int> v = {1, 2, 3};
-std::for_each(v.begin(), v.end(),
-              [](const int& v) -> void {
-                std::cout << v << std::endl;
-              });
-```
-**output**
-```
-1
-2
-3
-```
-但是看起来还是不够简洁，没关系，接着往下看
 
-lambda函数没有函数名，也叫匿名函数，所以它并不能简单地直接调用自身变成递归函数，不过我们也可以用`auto`给他起个名字
-```cpp
-auto f = [](const int& v) -> void {
-            std::cout << v << std::endl;
-          };
-std::for_each(v.begin(), v.end(), f);
-f(10);
-```
-**output**
-```
-1
-2
-3
-10
-```
-命名后可以使用像普通函数一样使用lambda函数
-
-接下来我们来细讲一下lambda各部分的功能
-
-**语法**：
->```cpp
->[capture_list](param) specifiers_exception_attr -> ret_type{ statement };
->```
-
-* **(param)** 代表参数列表，其中括号内为形参，和普通函数的形参一样
-  * lambda函数不能有默认参数
-  * 所有参数必须有参数名
-  * 不支持可变参数
-  * 参数表为空时可以省略 `()`
-* **->ret_type** 代表lambda函数的返回类型如 `-> int`、`-> string` 等。
-  * 在大多数情况下不需要，因为编译器可以推导类型
-    ```cpp
-    auto f = [](const int& i, const double j) {
-      return i + j;
-    };
-    auto value = f(1, 2.0);             // auto为double类型
-    ```
-* **{}** 内为函数主体，和普通函数一样
-* **[capture]** 代表捕获列表，与函数传参原理相同，可以访问父作用中的非静态局部变量（静态局部变量可以直接访问，无法访问全局变量）
-  * **空捕获**
-    ```cpp
-    int i = 0;
-    auto f = [](const int& i) { std::cout << i << std::endl; };
-    f(i);
-    ```
-  * **按值捕获** 在函数内不可修改变量的值
-    在`[]`中可以填入想捕获的变量名，多个变量间用`,`分隔，表示将变量以值传递的方式传入
-    ```cpp
-    int i = 0;
-    auto f = [i] { std::cout << i << std::endl; };
-    f();
-    ```
-    在`[]`中填入`=`，表示将父作用域的全部变量以值传递的方式传入
-    ```cpp
-    int i = 0, j = 1;
-    auto f = [=] { std::cout << i + j << std::endl; };
-    f();
-    ```
-    以值传递方式传入的变量不会随着实参的改变而改变
-    ```cpp
-    int i = 0;
-    auto f = [=] { std::cout << i << std::endl; };
-    i = 10;
-    f();
-    ```
-    **output**
-    ```
-    0
-    ```
-  * **按引用捕获**
-    在`[]`中可以填入想捕获的变量名的引用，多个变量间用`,`分隔，表示将变量以引用传递的方式传入
-    ```cpp
-    int i = 0;
-    auto f = [&i] { std::cout << i << std::endl; };
-    i++;
-    f();
-    ```
-    **output**
-    ```
-    1
-    ```
-    在`[]`中填入`&`，表示将父作用域的全部变量以引用传递的方式传入
-    ```cpp
-    int i = 0, j = 1;
-    auto f = [=] { std::cout << i + j << std::endl; };
-    j++;
-    f();
-    ```
-    **output**
-    ```
-    2
-    ```
-    以引用传递方式传入的变量随着实参或形参的改变而改变
-    ```cpp
-    int i = 0;
-    auto f = [=] { std::cout << i << std::endl; };
-    i = 10;
-    f();
-    ```
-    **output**
-    ```
-    10
-    ```  
-  * **混合方式捕获**
-    ```cpp
-    int i = 0, j = 1;
-    auto f = [=, &i] { std::cout << i + j << std::endl; };
-    i++;
-    j++;
-    f();
-    ```
-    表示按值捕获除`i`外的全部变量，按引用捕获变量`i`
-    **output**
-    ```
-    1
-    ```
-    ```cpp
-    int i = 0, j = 1;
-    auto f = [&, i] { std::cout << i + j << std::endl; };
-    i++;
-    j++;
-    f();
-    ```
-    表示按引用捕获除`i`外的全部变量，按值捕获变量`i`
-    **output**
-    ```
-    2
-    ```
-  按值全部捕获和按引用全部捕获被称为**隐式捕获** ；捕获特定变量的值或引用被称为**显示捕获**
-* **specifiers_exception_attr** 代表附加说明符，一般为`mutable`、`noexcept`等
-  如果要修改按值捕获的变量的值，可以添加`mutable`关键字，但是在lambda函数外部，变量不会被修改
-  ```cpp
-  int i = 0;
-  auto f = [i]() mutable { std::cout << ++i << std::endl; };
-  std::cout << i << std::endl;      // 0
-  f();                              // 1
-  std::cout << i << std::endl;      // 0
-  ```
-  **output**
-  ```
-  0
-  1
-  0
-  ```
-
-那么，上面用于接收lambda函数的变量类型，到底被`auto`推导成了什么呢？
-
-显然，lambda函数应当是个函数，返回值类型自然是函数指针
-```cpp
-int i = 0;
-void(*f)() = [&, i] { std::cout << i + j << std::endl; };
-```
-然而，它竟然是错误的！原因也很明显，lambda函数比普通函数多一个捕获列表
-
-lambda函数的本质是一个 **匿名类中的仿函数** ，捕获列表即 **类的成员变量** ，需要记住它的本质不是函数
-  
-不过，lambda函数属于可调用对象，包装器 `std::function` 可以接收它
+lambda表达式可以返回值，返回类型在箭头后面指定，称为尾返回类型。下面的例子定义了lambda表达式，它接收两个参数并返回它们的和：
 
 ```cpp
-int i = 0;
-std::function<void()> f = [&, i] { std::cout << i + j << std::endl; };
-f();
-```
-不过，为了简洁优雅的书写形式，我们还是更喜欢使用`auto`类型来接收返回值
-
-* 大一统理论中，`std::bind` 同样可以用于lambda函数
-```cpp
-std::function<void(int, const std::string&)> fn4 = std::bind(lb, std::placeholders::_1, std::placeholders::_2);
-fn4(4, "hello");
-```
-也可以将lambda直接替换为函数体
-```cpp
-std::function<void(int, const std::string&)> fn4 = std::bind(
-    [](int i, const std::string& message) {
-       std::cout << i << message << std::endl;
-    },
-    std::placeholders::_1,
-    std::placeholders::_2);
+auto returningLambda { [](int a, int b) -> int { return a + b; } };
+int sum { returningLambda(11, 22) };
 ```
 
-从上面可以看出，lambda函数能够方便我们随时随地写函数，这便是它最大的意义
+返回类型可以忽略，在这种情况下，编译器根据与函数返回类型推导相同的规则来推导lambda表达式的返回类型。在前面的示例中，返回类型可以省略，如下所示：
+
+```cpp
+auto returningLambda { [](int a, int b){ return a + b; } };
+int sum { returningLambda(11, 22) };
+```
+
+lambda表达式的闭包行为如下：
+
+```cpp
+class CompilerGeneratedName {
+public:
+  auto operator()(int a, int b) const { return a + b; }
+};
+```
+
+返回类型推导会移除任何引用和const限定，例如，假设下面的Person类：
+
+```cpp
+class Person {
+public:
+  Person(const std::string name) : m_name { std::move(name) } {}
+  const std::string& getName() const { return m_name; }
+private:
+  std::string m_name;
+};
+```
+
+下面lambda表达式的返回类型会被推到为string，因此会生成person的名字的拷贝，即使getName()返回的是 `const string&`：
+
+```cpp
+[](const Person& person) { return person.getName(); }
+```
+
+可以将尾返回类型与 `decltype(auto)` 结合使用，使推导出来的类型与getName()的返回类型匹配：
+
+```cpp
+[](const Person& person) -> decltype(auto) { return person.getName(); }
+```
+
+以上全部的lambda表达式被称为无状态表达式，因为它们没有从闭包作用域捕获任何内容。lambda表达式可以通过从闭包作用域捕获变量而具有状态，例如，下面的lambda表达式捕获变量数据，以便在其主体中使用：
+
+```cpp
+double data { 1,23 };
+auto capturingLambda { [data]{ cout << "Data = " << data << endl; } };
+```
+
+方括号部分称为lambda捕获列表，捕获变量意味着该变量在lambda表达式主体中可用，指定一个空的捕获列表 `[]` 意味着不从闭包作用域中捕获任何变量，当向前面的示例一样在捕获块中写入变量的名称时，那就是通过值捕获该变量。
+
+捕获的变量变为lambda闭包的数据成员，值捕获的变量被复制到仿函数的数据成员中，这些数据成员与捕获的变量具有相同的const属性。在前面的capturingLambda示例中，仿函数得到一个名为data的非const数据成员，因为捕获的data是非const，编译器生成的仿函数行为如下：
+
+```cpp
+class CompilerGeneratedName {
+public:
+  CompilerGeneratedName(const double& d) : data { d } {}
+  auto operator()() const { cout << "Data = " << data << endl; }
+private:
+  double data;
+};
+```
+
+在下例中，仿函数获得一个名为data的const数据成员，因为捕获的变量是const。
+
+```cpp
+const double data { 1.23 };
+auto capturingLambda { [data]{ cout << "Data = " << data << endl; } };
+```
+
+如前所述，lambda闭包有个重载的函数调用运算符，它被默认标记为const。在lambda表达式中按值捕获非const变量，lambda表达式中也不能修改该拷贝。如果lambda表达式指定为mutable，可以将函数调用运算符标记为非const，如下所示：
+
+```cpp
+double data { 1.23 };
+auto capturingLambda {
+  [data]() mutable { data *= 2; cout << "Data = " << data << endl; }
+};
+```
+
+注意，如果指定了mutable，就必须要为参数指定圆括号，即使它是空参的。
+
+可以在变量的名称前面加一个 `&` ，表示通过引用捕获它，下面的示例通过引用捕获变量data，这样lambda表达式可以在闭包作用域内直接修改data：
+
+```cpp
+double data { 1.23 };
+auto capturingLambda { [&data]{ data *= 2; } };
+```
+
+当通过引用捕获变量时，必须确保引用在lambda表达式执行期间是合法的。
+
+有两种方法从闭包作用域捕获所有的变量，称为默认捕获：
+
+- `[=]` 按值捕获所有变量
+- `[&]` 按引用捕获所有变量
+
+> **注意**
+>
+> 当使用引用捕获时，通过值或引用。只有那些在lambda表达式中真正使用的变量才会被捕获，未使用的变量不会被捕获。
+
+下面是一些捕获块的示例：
+
+- `[&x]` 只通过引用捕获x，没有其他内容
+- `[x]` 只通过值捕获x，没有其他内容
+- `[=, &x, &y]` 默认通过值捕获，除了变量x和y通过引用捕获
+- `[&, x]` 默认通过引用捕获，除了变量x通过值捕获
+- `[&x, &x]` 非法，标识符不能重复
+- `[this]` 捕获当前兑现给，在lambda表达式主体综合功能，即使不使用 `this->`，也可以访问该对象，需要确保所指向的对象在lambda表达式最后一次执行时始终存活
+- `[*this]` 捕获当前对象的拷贝，这在执行lambda表达式且原始对象不再存活时非常有用
+- `[=, this]` 按值捕获所有内容，并显式捕获this指针。在C++20之前， `[=]` 会隐式捕获this指针，这个在C++20中已被弃用，如果需要，请显式捕获它。
+
+下面是一些关于捕获列表的注意事项：
+
+- 如果默认指定了按值捕获或者按引用捕获，则不允许额外通过值或引用捕获特定的变量，例如 `[=, x]` 和 `[&, &x]` 都无效。
+- 对象的数据成员不能被捕获，除非使用lambda捕获表达式。
+- 当通过拷贝this指针 `[this]` 或拷贝当前对象 `[*this]` 来捕获this时，lambda表达式可以访问对象的所有公有、保护和私有数据成员和方法。
+
+> **警告**
+>
+> 全局变量总是通过引用捕获，即便要求值捕获！例如，在下面的代码中，默认捕获用于按值捕获的所有内容，然而，全局变量global是按引用捕获的，在执行lambda后它的值被更改。
+>
+> ```cpp
+> int global { 42 };
+> int main() {
+> auto lambda { [=] { global = 2; } };
+> lambda();
+> // global now has the value 2!
+> }
+>
+> 此外，不允许像下面这样显式捕获全局变量，这回导致编译错误：
+>
+> ```cpp
+> auto lambda { [global] { global = 2; } };
+> ```
+>
+> 即使没有这些问题，也不推荐使用全局变量。
+
+lambda表达式的完整语法如下：
+
+```cpp
+[capture_params] <template_params> (parameters) mutable constexpr
+  noexcept_specifier attributes
+  -> return_type requires {body};
+```
+
+除了捕获列表和主体，其他都是可选的。
+
+- 捕获列表：也成为lambda导入期，可以指定如何从闭包作用域总捕获变量，并使其在lambda主体中可用。
+- 模板参数（C++20）：允许编写模板化lambda表达式。
+- 参数：lambda表达式的参数列表，只有当不需要任何参数且不指定mutable, constexpr, noexcept说明符、属性、返回类型或可选条款时才可以省略此列表。
+- mutable：将lambda表达式标记为mutable。
+- constexpr：将lambda表达式标记为constexpr，它就可以在编译期计算。
+- noexcept说明符：可用于指定noexcept条款。
+- 属性：可用于指定lambda表达式的属性。
+- 返回类型：返回值的类型。如果省略，编译器会根据与函数返回类型推导相同的规则推导lambda表达式的返回类型。
+- requires（C++20）：为lambda闭包的函数调用运算符添加模板类型约束。
+
+> **注意**
+>
+> 对于不捕获任何内容的lambda表达式，编译期自动提供转换匀速那副，将lambda表达式转换为函数指针。例如，这样的lambda表达式可用于传递给接收函数指针作为参数的函数。
+
+### lambda表达式作为参数
+
+lambda表达式可以通过两种方式作为参数传递给函数，一种是与lambda表达式签名匹配的 `std::function` 类型的函数参数，另一种是使用模板类型参数。
+
+例如，lambda表达式可以传递给本章签名的findMatches()函数：
+
+```cpp
+vector values1 { 2, 5, 6, 9, 10, 1, 1 };
+vector values2 { 4, 4, 2, 9, 0, 3, 1 };
+findMatches(values1, values2,
+  [](int value1, int value2) { return value1 == value2; },
+  printMatch);
+```
+
+### 泛型lambda表达式
+
+可以为lambda表达式的参数使用自动类型推导，而不是显式地为它们指定具体类型。若要为参数指定自动类型推导，只需要简单地将类型指定为auto，类型推到规则与模板参数推导规则相同。
+
+下面的示例定义了名为areEqual()的泛型lambda表达式，这个lambda表达式用作本章前面提到过的findMatches()函数的回调：
+
+```cpp
+// define a generic lambda expression to find equal values.
+auto areEqual { [](const auto& value1, const auto& value2) {
+  return value1 == value2; } };
+// use the generic lambda expression in a call to findMatches()
+vector values1 { 2, 5, 6, 9, 10, 1, 1 };
+vector values2 { 4, 4, 2, 9, 0, 3, 1 };
+findMatches(values1, values2, areEqual, printMatch);
+```
+
+编译器为泛型lambda表表达式生成的仿函数如下：
+
+```cpp
+class CompilerGeneratedName {
+public:
+  template <typename T1, typename T2>
+  auto operator()(const T1& value1, const T2& value2) const 
+  { return value1 == value2; }
+};
+```
+
+如果findMatches()函数被更改为不仅支持整型区间，还支持其他类型，那么areEqual泛型表达式不需要做任何修改也可继续使用。
+
+### lambda捕获表达式
+
+### 模板化lambda表达式
+
+### lambda表达式作为返回类型
+
+### 不求值表达式中的lambda表达式
+
+### 默认构造、拷贝和赋值
 
 ### lambda函数递归
 
-上面说了，因为lambda函数是匿名函数，无法简单地直接调用自身，但是我们还是可以通过一些办法实现递归
+因为lambda函数是匿名函数，无法简单地直接调用自身，但是我们还是可以通过一些办法实现递归
+
 ```cpp
 auto gcd = [&gcd](const int& small, const int& big) {
              return x == 0 ? x : gcd(small, big % small);
            };
 gcd(4, 6);
 ```
+
 **output**
+
 ```
 2
 ```
@@ -896,27 +946,4 @@ int main() {
 
 首先我们定义了一个组合子 Y 用来“拼接”函数，然后外部公开了方法 fix 来转发 lambda 函数，而内部则用变长模板来转发 lambda 函数的参数。这里注意第 27 行里，需要显式的声明 lambda 函数的返回类型，否则会导致编译报错，原因是函数参数 g 并没有一个明确的返回值。
 
-### lambda 能否返回一个 lambda
-
-既然诚心诚意的问了，那我就光明正大的告诉你，当然是可以的。
-
-```CPP
-int main() {
-    auto addition = [](int _1, int _2) -> int { return _1 + _2; };
-    auto add3 = [=](int _1) -> int { return addition(_1, 3); };
-    auto addition2 = [](int _1) -> auto {
-        return [_1](int _2) -> int { return _1 + _2; };
-    };
-    auto add5 = addition2(5);
-    std::cout << addition(10, 20) << std::endl; // => 30
-    std::cout << addition2(10)(20) << std::endl; // => 30
-    std::cout << add3(10) << std::endl; // => 13
-    std::cout << add5(10) << std::endl; // => 15
-}
-```
-
-恭喜你，如果你看懂了这个代码，你已经成功了和柯里化打了个照面了。第一个 addition 是我们最常见的函数定义，而第二个 addition2 则显得不那么常见。如果只从代码层面分析，他是一个依次接受两个参数的函数。如果只接受一个参数，他会返回一个接受一个参数的函数。但是实际上是因为 addition2 首先返回一个 lambda 函数，然后如果还有第二个参数他才会返回具体的计算结果。如果对这个不是很理解的话，可以对照 python 的装饰器思考一下，lambda 函数提供了一个更为简单的打包或者修饰函数的方法。当然具体怎么用当然还是看怎么写怎么方便来。
-
----
-
-**edit & arrange** Serein
+## 调用
