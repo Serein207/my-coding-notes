@@ -132,7 +132,7 @@ private:
 namespace std {
 template<> struct hash<IntWrapper> {
   size_t operator()(const IntWrapper& wrapper) const {
-    return std::hash<int>()(wrapper.getValue());
+    return std::hash<int>{}(wrapper.getValue());
   }
 };
 }
