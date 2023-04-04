@@ -852,7 +852,7 @@ vector values2 { 4, 4, 2, 9, 0, 3, 1 };
 findMatches(values1, values2, areEqual, printMatch);
 ```
 
-编译器为泛型lambda表表达式生成的仿函数如下：
+编译器为泛型lambda表达式生成的仿函数如下：
 
 ```cpp
 class CompilerGeneratedName {
