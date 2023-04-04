@@ -7,6 +7,11 @@
   - [哈希函数](#哈希函数)
   - [`unordered_map`](#unordered_map)
     - [`unordered_map` 示例：电话簿](#unordered_map-示例电话簿)
+  - [`unordered_multimap`](#unordered_multimap)
+  - [`unordered_set` `unordered_multiset`](#unordered_set-unordered_multiset)
+  - [`bitset`](#bitset)
+    - [1. bitset基础](#1-bitset基础)
+    - [2. 按位运算符](#2-按位运算符)
 
 
 ## `span`
@@ -216,4 +221,74 @@ Marc G. is in bucket 1 containing the following 2 names:
 -------
 There are 8 buckets.
 Average number of elements in a bucket is 0.5.
+```
+
+## `unordered_multimap`
+
+unordered_map是允许多个元素带有同一个键的unordered_map。两者的接口几乎相同，区别在于：
+
+- unordered_multimap没有提供 `operator[]` 运算符和 `at()`。
+- 在unordered_multimap上执行插入操作总会成功。因此，添加单个元素的 `unordered_map::insert()` 方法只返回迭代器而非pair。
+- unordered_map支持 `insert_or_assign()` 和 `try_emplace()` 方法，但是，unordered_multimap不支持这两个方法。
+
+## `unordered_set` `unordered_multiset`
+
+`<unordered_set>` 头文件定义了unordered_set和unordered_multiset，这两者分别类似于set和multiset。区别在于它们不会对键进行排序，而且使用了哈希函数。
+
+## `bitset`
+
+bitset是固定长度的位序列的抽象。bitset还使用了设置(set)和清零(unset)两个术语。可将一个位从一个值切换(toggle)或翻转(flip)为另一个值。
+
+bitset并不是真正的标准库容器：bitset的大小固定，没有对元素类型进行模板化，也不支持迭代器。然而，这是一个有用的工具类，而且常和容器在一起，因此这里做一下简要介绍。
+
+### 1. bitset基础
+
+bitset定义在 `<bitset>` 头文件中，根据保存的位数进行模板化。默认构造函数将bitset的所有字段初始化为0。另一个构造函数根据0和1字符组成的字符串创建bitset。
+
+可通过 `set()` `reset()` `flip()` 方法改变单个位的值，通过重载的 `operator[]` 可以访问和设置单个字段的值。注意，对非const对象应用 `operator[]` 会返回一个代理对象，可为这个代理对象赋予一个布尔值，调用 `flip()` 或 `~` 取反。还可以通过 `test()` 方法访问单个字段。bitset以包含0或1字符的字符串形式进行流式处理。此外，通过普通的插入和抽取运算符可以流式处理bitset。bitset作为包含0和1字符的字符串进行流处理。
+
+下面是一个简单的示例：
+
+```cpp
+bitset<10> myBitset;
+
+myBitset.set(3);
+myBitset.set(6);
+myBitset[8] = true;
+myBitset[9] = myBitset[3];
+
+if (myBitset.test(3)) {
+  cout << "Bit 3 is set!" << endl;
+}
+cout << myBitset << endl;
+```
+
+**output**
+
+```
+Bit 3 is set!
+1101001000
+```
+
+### 2. 按位运算符
+
+除基本的位操作外，bitset还实现了所有按位元素符。示例如下：
+
+```cpp
+auto str1 {"0011001100"};
+auto str2 {"0000111100"};
+bitset<10> bitsOne { str1 };
+bitset<10> bitsTwo { str2 };
+
+auto bitsThree { bitsOne & bitsTwo };
+cout << bitsThree << endl;
+bitsThree <<= 4;
+cout << bitsThree << endl;
+```
+
+**output**
+
+```
+0000001100
+0011000000
 ```
