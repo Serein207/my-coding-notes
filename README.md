@@ -24,6 +24,7 @@ Modern C++ 内容主要摘自《C++20高级编程》和cppreference.com
 14. [异常](ModernCpp/ModernCpp-异常.md)
 15. [标准库容器](ModernCpp/ModernCpp-标准库容器.md)
 16. [函数指针，函数对象，lambda表达式](ModernCpp/ModernCpp-可调用对象.md)
+17. [字符串本地化与正则表达式](ModernCpp/ModernCpp-字符串本地化与正则表达式.md)
 
 ## C++基础语法 目录
 
