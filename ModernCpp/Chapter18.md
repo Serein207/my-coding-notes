@@ -72,11 +72,11 @@ C++中的默认语法是ECMAScript，接下来将详细介绍这种语法。这�
 
 ### 2. 通配符
 
-通配符(wildcard)可用于匹配除换行符外的任意字符。例如，正则表达式 `a.c` 可以匹配abc和a5c，但不匹配ab5c和ac。
+`.` 通配符(wildcard)可用于匹配除换行符外的任意字符。例如，正则表达式 `a.c` 可以匹配abc和a5c，但不匹配ab5c和ac。
 
 ### 3. 替代
 
-|字符表示“或”的关系。例如，`a|b` 表示匹配a或b。
+`|` 字符表示“或”的关系。例如，`a|b` 表示匹配a或b。
 
 ### 4. 分组
 
@@ -184,7 +184,7 @@ C++中的默认语法是ECMAScript，接下来将详细介绍这种语法。这�
 - 如果源字符串的第一个字符在单词字符（即字母、数字或下划线）之后，则表示源字符串的开头位置。匹配源字符串的开头位置默认为启用，但也可以禁用(regex_constants::match_not_bow，bow表示字母开头)。
 - 如果源字符串的最后一个字符是单词字符之一，则表示源字符串的结束位置。匹配源字符串的结束位置默认为启用，但也可以禁用(regex_constants::match_not_eow，eow表示字母结尾)。
 
-通过\b可匹配单词边界，通过\B匹配单词边界外的任何内容。
+通过 `\b` 可匹配单词边界，通过 `\B` 匹配单词边界外的任何内容。
 
 ### 9. 后向引用
 
@@ -240,10 +240,10 @@ R"((|\n|\r|\\))"
 
 regex库提供了3个关键算法：regex_match(), regex_search()和regex_replace()。所有这些算法都有不同的版本，用于处理不同的字符串或表示开始和结束的迭代器对。迭代器可以具有以下类型：
 
-- const char*
-- const wchar_t*
-- string::const_iterator
-- wstring::const_iterator
+- `const char*`
+- `const wchar_t*`
+- `string::const_iterator`
+- `wstring::const_iterator`
 
 事实上，可使用任何具有双向迭代器行为的迭代器。
 
