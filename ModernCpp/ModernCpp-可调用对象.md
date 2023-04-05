@@ -867,13 +867,144 @@ public:
 
 ### lambda捕获表达式
 
+lambda捕获表达式允许使用任何类型的表达式初始化捕获变量，它可用于在lambda表达式中引入未从闭包作用域捕获的变量。例如，下面的代码创建一个lambda表达式，其中有两个变量，一个是myCapture，使用lambda捕获表达式初始化字符串 `"Pi: "`，另一个是pi，从闭包作用域中通过值捕获到。注意使用捕获初始化来初始化的非引用捕获变量（如myCapture）是拷贝构造的，这意味着会移除const限定符。
+
+```cpp
+double pi { 3.1415 };
+auto myLambda { [myCapture = "Pi: ", pi]{ cout << myCapture << pi; } };
+```
+
+lambda捕获变量可以用任何类型的表达式初始化，因此也可以用 `std::move()` 来初始化。这对于不能复制、只能移动的对象（如unique_ptr）来说非常重要。默认情况下，值捕获使用复制语义，因此不能在lambda表达式中按值捕获unique_ptr。使用lambda捕获表达式，可以通过移动来捕获它，如下所示：
+
+```cpp
+auto myPtr { make_unique<double>(3.1415) };
+auto myLambda { [p = move(myPtr)]{ cout << *p; } };
+``` 
+
+允许但不推荐捕获变量的名称与闭包作用域中的名称相同，上面的示例可以写成下面这样：
+
+```cpp
+auto myPtr { make_unique<double>(3.1415) };
+auto myLambda { [myPtr = move(myPtr)]{ cout << *p; } };
+```
+
 ### 模板化lambda表达式
+
+C++20支持模板化lambda表达式，这样过呢个容易访问泛型lambda表达式的类型信息。例如，假设有一个lambda表达式，它要求vector做参数，但是vector中的元素可以是任意类型。因此，它是使用auto作为参数的泛型lambda表达式。lambda表达式的主体想要推出vector中元素的类型。
+
+在C++20之前，这只能通过decltype()和std::decay_t来实现，称为类型萃取，decay_t移除了类型中的任何const和引用限定符。下面是泛型lambda表达式：
+
+```cpp
+auto lambda { [](const auto& values) {
+  using V = decay_t<decltype(values)>; //the real type of the vector
+  using T = typename V::value_type; // the type of the elements of the vector
+  T someValue {};
+  T::some_static_function();
+} };
+```
+
+可以像下面这样调用这个lambda表达式：
+
+```cpp
+vector values { 1, 2, 100, 5, 6 };
+lambda(values);
+```
+
+使用decltype()和decay_t非常复杂，模板化lambda表达式容易些。下面的lambda表达式强制其参数是vector类型，但仍为vector元素类型使用模板类型参数。
+
+```cpp
+[] <typename T> (const vector<T>& values) {
+  T someValue {};
+  T::some_static_function();
+};
+```
+
+模板化lambda表达式的另一个用法：如果想对泛型lambda表达式添加某种限制，例如，假设有下面的泛型lambda表达式：
+
+```cpp
+[](const auto& value1, const auto& value2) {...}
+```
+
+这个lambda表达式接收两个参数，编译器自动推导出每个参数的类型。因为两个参数的类型是分开推导的，所以value1和value2的类型可以不同。如果想要加以限制，希望两个参数具有相同类型，可以将其转换为一个模板化lambda表达式：
+
+```cpp
+[] <typename T> (const T& value1, const T& value2) {...}
+```
+
+可以通过添加requires对模板类型设置约束：
+
+```cpp
+[] <typename T> (const T& value1, const T& value2) requires integral<T> {...}
+```
 
 ### lambda表达式作为返回类型
 
+通过前面讨论的std::function，lambda表达式可以从函数中返回，看下面定义：
+
+```cpp
+function<int(void)> multiplyBy2Lambda(int x) {
+  return [x]{ return 2 * x; };
+}
+```
+
+函数返回的类型是 `function<int(void)>` ，这是不接受参数并返回整数的函数，函数体中定义的lambda表达式恰好与此原型匹配。函数的调用方法如下：
+
+```cpp
+function<int(void)> fn { multiplyBy2Lambda(5) };
+cout << fn() << endl;
+```
+
+auto关键字更简单
+
+```cpp
+auto fn { multiplyBy2Lambda(5) };
+cout << fn() << endl;   // out: 10
+```
+
+函数返回类型推导可以更优雅地编写multiplyBy2Lambda函数，如下：
+
+```cpp
+auto multiplyBy2Lambda(int x) {
+  return [x]{ return 2 * x; };
+}
+```
+
+假设函数重写为按引用捕获 `[&x]` ，这没有效果。因为lambda表达式会在程序后执行，不会在函数体内执行。此时对x的引用不再有效。
+
+```cpp
+auto multiplyBy2Lambda(int x) {
+  return [&x]{ return 2 * x; }; // bug!
+}
+```
+
 ### 不求值表达式中的lambda表达式
 
+C++20允许在不求值表达式中使用lambda表达式。例如，传递给decltype()的擦拭农户只在编译期使用而且从不计算，因此，下面的语句在C++17及更早的版本无效，在C++20后可以使用。
+
+```cpp
+using LambdaType = decltype([](int a, int b){ return a + b; });
+```
+
 ### 默认构造、拷贝和赋值
+
+从C++20起，可以默认构造、拷贝和赋值无状态lambda表达式，这里有个简单的示例：
+
+```cpp
+auto lambda { [](int a, int b){ return a + b; } };    // a stateless lambda
+decltype(lambda) lambda2;   // default constructor
+auto copy { lambda };       // copy constructor
+copy = lambda2;             // copy assignment
+```
+
+结合不求值表达式中使用lambda表达式，下面的代码有效：
+
+```cpp
+using LambdaType = decltype([](int a, int b){ return a + b; }); // unevaluated
+
+LambdaType getLambda() {
+  return LambdaType{};  //default constructor
+}
+```
 
 ### lambda函数递归
 
@@ -947,3 +1078,18 @@ int main() {
 首先我们定义了一个组合子 Y 用来“拼接”函数，然后外部公开了方法 fix 来转发 lambda 函数，而内部则用变长模板来转发 lambda 函数的参数。这里注意第 27 行里，需要显式的声明 lambda 函数的返回类型，否则会导致编译报错，原因是函数参数 g 并没有一个明确的返回值。
 
 ## 调用
+
+定义在 `<functional>` 中的 `std::invoke()` ，可用于调用任何带有一组参数的可调用对象。下面的示例使用了3次invoke()，一次调用普通函数，一次调用lambda表达式，一次调用string实例上的成员函数：
+
+```cpp
+void printMessage(string_view message) { cout << message << endl; }
+
+int main() {
+  invoke(printMessage, "Hello invoke.");
+  invoke([](const auto& msg){ cout << msg << endl; }, "Hello invoke.");
+  string msg { "Hello invoke." };
+  cout << invoke(&string::size, msg) << endl;
+}
+```
+
+就其本身而言，invoke没有那么有用，因为可以直接调用函数或lambda表达式，但是在编写需要调用某个可调用对象的泛型模板代码时，它很有用。
