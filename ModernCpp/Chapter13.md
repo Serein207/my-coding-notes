@@ -120,7 +120,7 @@ concept C = requires (const T x) {
 };
 ```
 
-`std::convertible_to<From, To>` 是标准库在 `<concepts>` 中预定义的概念，它有两个模板类型参数。箭头左边的表达式的类型自动作为第一个模板类型参数传递给 `convertible_to` 的类型约束。因此，在这种情况下，只需要指定 `To` 模板参数类型实参（本例中为size_t)。
+`std::convertible_to<From, To>` 是标准库在 `<concepts>` 中预定义的概念，它有两个模板类型参数。箭头左边的表达式的类型自动作为第一个模板类型参数传递给 `convertible_to` 的类型约束。因此，在这种情况下，只需要指定 `To` 模板参数类型实参（本例中为size_t）。
 
 一个 `requires` 表达式可以有多个参数，并且可以由一系列需求组成。例如，下面的概念要求类型T的示例是可比较的：
 
@@ -337,7 +337,7 @@ integral<T>
 
 可以为类模板编写特化，为函数模板编写重载，从而为特定类型编写不同的实现。也可以为满足特定约束的类型的结合编写特化。
 
-回顾一下[函数模板](ModernCpp/ModernCpp-函数模板-变量模板.md)中提到的 `Find()` 函数模板：
+回顾一下[函数模板](ModernCpp/Chapter12.md)中提到的 `Find()` 函数模板：
 
 ```cpp
 template <typename T>
