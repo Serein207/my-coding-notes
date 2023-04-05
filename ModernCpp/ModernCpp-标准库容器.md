@@ -1,20 +1,20 @@
-# Modern C++ 标准库容器
+# Chapter15. Modern C++ 标准库容器
 
 > 本章你将看到现代C++中新增的容器介绍。
 
-- [Modern C++ 标准库容器](#modern-c-标准库容器)
-  - [`span`](#span)
-  - [哈希函数](#哈希函数)
-  - [`unordered_map`](#unordered_map)
+- [Chapter15. Modern C++ 标准库容器](#chapter15-modern-c-标准库容器)
+  - [15.1 `span`](#151-span)
+  - [15.2 哈希函数](#152-哈希函数)
+  - [15.3 `unordered_map`](#153-unordered_map)
     - [`unordered_map` 示例：电话簿](#unordered_map-示例电话簿)
-  - [`unordered_multimap`](#unordered_multimap)
-  - [`unordered_set` `unordered_multiset`](#unordered_set-unordered_multiset)
-  - [`bitset`](#bitset)
-    - [1. bitset基础](#1-bitset基础)
-    - [2. 按位运算符](#2-按位运算符)
+  - [15.4 `unordered_multimap`](#154-unordered_multimap)
+  - [15.5 `unordered_set` `unordered_multiset`](#155-unordered_set-unordered_multiset)
+  - [15.6 `bitset`](#156-bitset)
+    - [15.6.1 bitset基础](#1561-bitset基础)
+    - [15.6.2 按位运算符](#1562-按位运算符)
 
 
-## `span`
+## 15.1 `span`
 
 假设使用这个函数打印一个vector中的内容：
 
@@ -105,7 +105,7 @@ void print(span<const int> values) {
 >
 > 在编写接受 `const vector<T>&` 的函数时，考虑使用 `span<const T>` 作为替换。这样函数就可以处理来自vector, array, C风格数组等的数据序列的视图和子视图。
 
-## 哈希函数
+## 15.2 哈希函数
 
 哈希函数的结果未必是唯一的。两个或多个键哈希到同一个桶索引，就称为**冲突(collision)** 。当使用不同键得相同的哈希值，或把不同的哈希值转换为同一个桶索引时，就会发生冲突。可采用多种方法处理冲突，例如 **二次重哈希(quadratic re-hashing)** 和 **线性链(linear chaining)** 等方法。
 
@@ -140,7 +140,7 @@ template<> struct hash<IntWrapper> {
 
 注意，一般不允许把任何内容放在std命名空间中，但std类模板的特例是这条规则的例外。如果类包含多个数据成员，就需要在计算哈希时考虑所有数据成员，这不是这里要讨论的内容。
 
-## `unordered_map`
+## 15.3 `unordered_map`
 
 unordered_map容器在 `<unordered_map>` 头文件中定义，是一个类模板，如下所示：
 
@@ -223,7 +223,7 @@ There are 8 buckets.
 Average number of elements in a bucket is 0.5.
 ```
 
-## `unordered_multimap`
+## 15.4 `unordered_multimap`
 
 unordered_map是允许多个元素带有同一个键的unordered_map。两者的接口几乎相同，区别在于：
 
@@ -231,17 +231,17 @@ unordered_map是允许多个元素带有同一个键的unordered_map。两者的
 - 在unordered_multimap上执行插入操作总会成功。因此，添加单个元素的 `unordered_map::insert()` 方法只返回迭代器而非pair。
 - unordered_map支持 `insert_or_assign()` 和 `try_emplace()` 方法，但是，unordered_multimap不支持这两个方法。
 
-## `unordered_set` `unordered_multiset`
+## 15.5 `unordered_set` `unordered_multiset`
 
 `<unordered_set>` 头文件定义了unordered_set和unordered_multiset，这两者分别类似于set和multiset。区别在于它们不会对键进行排序，而且使用了哈希函数。
 
-## `bitset`
+## 15.6 `bitset`
 
 bitset是固定长度的位序列的抽象。bitset还使用了设置(set)和清零(unset)两个术语。可将一个位从一个值切换(toggle)或翻转(flip)为另一个值。
 
 bitset并不是真正的标准库容器：bitset的大小固定，没有对元素类型进行模板化，也不支持迭代器。然而，这是一个有用的工具类，而且常和容器在一起，因此这里做一下简要介绍。
 
-### 1. bitset基础
+### 15.6.1 bitset基础
 
 bitset定义在 `<bitset>` 头文件中，根据保存的位数进行模板化。默认构造函数将bitset的所有字段初始化为0。另一个构造函数根据0和1字符组成的字符串创建bitset。
 
@@ -270,7 +270,7 @@ Bit 3 is set!
 1101001000
 ```
 
-### 2. 按位运算符
+### 15.6.2 按位运算符
 
 除基本的位操作外，bitset还实现了所有按位元素符。示例如下：
 

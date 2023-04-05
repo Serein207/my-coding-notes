@@ -1,18 +1,19 @@
-# Modern C++ 引用
+# Chapter7. Modern C++ 引用
 
 > 关于引用的更详细说明 [知乎链接](https://zhuanlan.zhihu.com/p/99524127)，本文部分参考该文
 
-- [Modern C++ 引用](#modern-c-引用)
-  - [左值\&右值](#左值右值)
-  - [右值引用 *(rvalue reference)*](#右值引用-rvalue-reference)
-  - [常量左值引用 *(const lvalue reference)*](#常量左值引用-const-lvalue-reference)
-  - [万能引用 *(universal reference)*](#万能引用-universal-reference)
+- [Chapter7. Modern C++ 引用](#chapter7-modern-c-引用)
+  - [7.1 左值\&右值](#71-左值右值)
+  - [7.2 右值引用 *(rvalue reference)*](#72-右值引用-rvalue-reference)
+  - [7.3 常量左值引用 *(const lvalue reference)*](#73-常量左值引用-const-lvalue-reference)
+  - [7.4 万能引用 *(universal reference)*](#74-万能引用-universal-reference)
     - [来点有意思的东西](#来点有意思的东西)
-  - [完美转发 `std::forward`](#完美转发-stdforward)
-  - [引用折叠 *(reference collapsing)*](#引用折叠-reference-collapsing)
+  - [7.5 完美转发 `std::forward`](#75-完美转发-stdforward)
+  - [7.6 引用折叠 *(reference collapsing)*](#76-引用折叠-reference-collapsing)
     - [再看点有意思的](#再看点有意思的)
 
-## 左值&右值
+## 7.1 左值&右值
+
 * C++11中将右值拓展为 **纯右值 *(prvalue)*** 和 **将亡值 *(xvalue)***
   * **纯右值**：非引用返回的临时变量，运算表达式的结果，字面常量
   * **字符串字面量**是左值，而且是不可被更改的左值。字符串字面量并不具名，但是可以用&取地址所以也是左值。
@@ -37,6 +38,7 @@
     ```
 
 左值右值判断方法精简：
+
 * 如果你可以对一个表达式取地址，那这个表达式就是个lvalue。
 * 如果一个表达式的类型是一个lvalue reference (例如, `T&` 或 `const T&`, 等.)，那这个表达式就是一个lvalue。
 * 其它情况，这个表达式就是一个rvalue。从概念上来讲(通常实际上也是这样)，rvalue对应于临时对象，例如函数返回值或者通过隐式类型转换得到的对象，大部分字面值(e.g., `10` and `5.3`)也是rvalue。
@@ -59,7 +61,8 @@ getTemp().m_a;    // 将亡值
 
 ---
 
-## 右值引用 *(rvalue reference)*
+## 7.2 右值引用 *(rvalue reference)*
+
 * C++11中增加右值引用，在C++98中的引用都称为**左值引用 *(lvalue reference)***
 
 右值引用就是给右值取别名，新名字就是左值。如果一个prvalue被绑定到一个引用上，它的生命周期则会延长到跟这个引用变量一样长。
@@ -162,7 +165,7 @@ result()
 
 ---
 
-## 常量左值引用 *(const lvalue reference)*
+## 7.3 常量左值引用 *(const lvalue reference)*
 * 常量左值引用，可以绑定左值和右值，但不能更改引用的值
 * 非常量左值引用只能绑定左值，右值引用只能绑定右值
 ```cpp
@@ -176,7 +179,7 @@ const int& c = 1; // 绑定右值
 
 ---
 
-## 万能引用 *(universal reference)* 
+## 7.4 万能引用 *(universal reference)* 
 也称转发引用或通用引用
 
 > If a variable or parameter is declared to have type T&& for some deduced type T, that variable or parameter is a universal reference.
@@ -209,7 +212,7 @@ template<typename T>
 void f(const T&& param);               // “&&” means rvalue reference
 ```
 
-</br>
+---
 
 ### 来点有意思的东西
 
@@ -268,9 +271,6 @@ void std::vector<Widget>::emplace_back(Args&&... args);
 
 ---
 
-
-
-</br>
 
 * 一个表达式的 **左值性 *(lvalueness)*** 或者 **右值性 *(rvalueness)*** 和它的类型无关。
 
@@ -331,7 +331,7 @@ class Gadget {
 
 ---
 
-## 完美转发 `std::forward`
+## 7.5 完美转发 `std::forward`
 
 在函数模板中，可以将自己的参数“完美地”转发给其他函数，即准确转发参数的值和左右值属性
 * 能否实现完美转发，决定了该参数在传递过程中用的是拷贝语义还是移动语义
@@ -408,7 +408,7 @@ lvalue
 rvalue
 ```
 
-## 引用折叠 *(reference collapsing)*
+## 7.6 引用折叠 *(reference collapsing)*
 
 *我们即将深入探讨 universal reference 的实现原理*
 
@@ -628,7 +628,7 @@ int main()
 **output**
 ```
 bar(shape&&)
-foo(const shape&）
+foo(const shape&)
 ```
 
 `bar`中传入的是右值，调用`bar`的`&&`重载函数，但是对于`void bar(shape&& s)`来说，`s`本身是一个lvalue，所以在`foo(s)`后，仍旧调用的是`&`重载函数。
@@ -669,8 +669,3 @@ foo(shape&&)
 上面提到过一个绑定到universal reference上的对象可能具有 lvalueness 或者 rvalueness，正是因为有这种二义性,所以催生了`std::forward`: 如果一个本身是 lvalue 的 universal reference 如果绑定在了一个 rvalue 上面，就把它重新转换为rvalue。函数的名字 (“forward”) 的意思就是，我们希望在传递参数的时候，可以保存参数原来的lvalueness 或 rvalueness，即是说把参数转发给另一个函数。
 
 因为在 `T` 是模板参数时，`T&&` 的作用主要是保持值类别进行转发，它有个名字就叫“转发引用”（forwarding reference）。因为既可以是左值引用，也可以是右值引用，它也曾经被叫做“万能引用”（universal reference）。
-
----
-
-**edit & arrange**  Serein
-

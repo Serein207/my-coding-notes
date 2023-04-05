@@ -1,44 +1,45 @@
-# Modern C++ 智能指针
+# Chapter9. Modern C++ 智能指针
 
 > 本节所有内容均需包含头文件`<memory>`
 
-- [Modern C++ 智能指针](#modern-c-智能指针)
-  - [独享指针 `std::unique_ptr`](#独享指针-stdunique_ptr)
-    - [语法](#语法)
-    - [更强的异常处理](#更强的异常处理)
-    - [用法](#用法)
+- [Chapter9. Modern C++ 智能指针](#chapter9-modern-c-智能指针)
+  - [9.1 独享指针 `std::unique_ptr`](#91-独享指针-stdunique_ptr)
+    - [9.1.1 语法](#911-语法)
+    - [9.1.2 更强的异常处理](#912-更强的异常处理)
+    - [9.1.3 用法](#913-用法)
       - [获取裸指针](#获取裸指针)
       - [释放资源](#释放资源)
       - [解绑资源](#解绑资源)
-    - [移动语义和独享指针](#移动语义和独享指针)
-    - [自定义分配和释放内存函数](#自定义分配和释放内存函数)
-    - [如何在函数间传递 `std::unique_ptr`](#如何在函数间传递-stdunique_ptr)
+    - [9.1.4 移动语义和独享指针](#914-移动语义和独享指针)
+    - [9.1.5 自定义分配和释放内存函数](#915-自定义分配和释放内存函数)
+    - [9.1.6 如何在函数间传递 `std::unique_ptr`](#916-如何在函数间传递-stdunique_ptr)
       - [用 `std::move` 转移 `std::unique_ptr` 的控制权](#用-stdmove-转移-stdunique_ptr-的控制权)
       - [函数返回 `std::unique_ptr`](#函数返回-stdunique_ptr)
-  - [共享指针 `std::shared_ptr`](#共享指针-stdshared_ptr)
-    - [语法](#语法-1)
-    - [自动管理内存](#自动管理内存)
-    - [引用计数](#引用计数)
-    - [用法](#用法-1)
+  - [9.2 共享指针 `std::shared_ptr`](#92-共享指针-stdshared_ptr)
+    - [9.2.1 语法](#921-语法)
+    - [9.2.2 自动管理内存](#922-自动管理内存)
+    - [9.2.3 引用计数](#923-引用计数)
+    - [9.2.4 用法](#924-用法)
       - [获取裸指针](#获取裸指针-1)
       - [释放资源](#释放资源-1)
       - [自定义内存释放函数](#自定义内存释放函数)
       - [别名 Aliasing](#别名-aliasing)
-    - [危险行为](#危险行为)
-    - [额外性能开销](#额外性能开销)
-    - [环形依赖](#环形依赖)
-  - [弱指针 `std::weak_ptr`](#弱指针-stdweak_ptr)
-    - [语法](#语法-2)
-    - [用法](#用法-2)
-    - [解决环形依赖](#解决环形依赖)
-  - [`std::enable_shared_from_this`](#stdenable_shared_from_this)
-  - [过时的、移除的 `auto_ptr`](#过时的移除的-auto_ptr)
+    - [9.2.6 危险行为](#926-危险行为)
+    - [9.2.7 额外性能开销](#927-额外性能开销)
+    - [9.2.8 环形依赖](#928-环形依赖)
+  - [9.3 弱指针 `std::weak_ptr`](#93-弱指针-stdweak_ptr)
+    - [9.3.1 语法](#931-语法)
+    - [9.3.2 用法](#932-用法)
+    - [9.3.3 解决环形依赖](#933-解决环形依赖)
+  - [9.4 `std::enable_shared_from_this`](#94-stdenable_shared_from_this)
+  - [9.5 过时的、移除的 `auto_ptr`](#95-过时的移除的-auto_ptr)
 
 
-## 独享指针 `std::unique_ptr`
+## 9.1 独享指针 `std::unique_ptr`
 `unique_ptr` 独享它指向的对象，也就是说，同时只有一个 `unique_ptr` 指向同一个对象，当这个`unique_ptr` 被销毁时，其指向的对象也随即被销毁
 
-### 语法
+### 9.1.1 语法
+
 > ```cpp
 > std::unique_ptr<Type> up = std::make_unique<Type>(value);
 > ```
@@ -73,7 +74,7 @@ main end
 ```
 可以看出，当`test()`函数执行完，`unique_ptr`指针被销毁，其绑定的A对象也会被自动释放，无需手动释放A对象
 
-### 更强的异常处理
+### 9.1.2 更强的异常处理
 
 先看如下代码
 ```cpp
@@ -93,7 +94,7 @@ p->foo();
 (*p).foo();
 ```
 
-### 用法
+### 9.1.3 用法
 `std::unique_ptr`的用法和裸指针类似，可以使用`*.`，`->`等操作
 
 #### 获取裸指针
@@ -125,7 +126,7 @@ delete a;
 a = nullptr;
 ```
 
-### 移动语义和独享指针
+### 9.1.4 移动语义和独享指针
 
 由于`std::unique` 独占一块内存的控制权，所以它不支持普通拷贝
 ```cpp
@@ -151,7 +152,7 @@ std::unique_ptr<Type> up1 = std::make_unique<Type>(value);
 std::unique_ptr<Type> up2 = std::move(up1);
 ```
 
-### 自定义分配和释放内存函数
+### 9.1.5 自定义分配和释放内存函数
 在默认情况下，`std::unique_ptr`使用`new`和`delete`实现分配和释放内存
 
 你也可以自定义分配和释放函数，通过将释放函数地址填入第二个模板参数中
@@ -174,7 +175,7 @@ int main() {
 
 `std::unique_ptr`绑定分配和释放内存的函数在编译器进行，释放函数的类型变成它的一部分，避免运行时绑定的时间损耗，这也决定了`std::unique_ptr`的0额外开销的特性，让用户使用起来更简单
 
-### 如何在函数间传递 `std::unique_ptr`
+### 9.1.6 如何在函数间传递 `std::unique_ptr`
 
 由于`std::unique_ptr`不能复制，所以值传递时会报错
 
@@ -288,11 +289,11 @@ int main() {
 }
 ```
 
-## 共享指针 `std::shared_ptr`
+## 9.2 共享指针 `std::shared_ptr`
 
 共享指针会记录有多少个共享指针指向同一个对象，当这个数字降到0时，程序就会自动释放这个对象
 
-### 语法
+### 9.2.1 语法
 >```cpp
 >std::shared_ptr<Type> sp = std::make_shared<Type>(value);
 >```
@@ -312,7 +313,7 @@ std::cout << *p <<std::endl;
 
 多个指针指向同一对象的操作被称为 **共享**
 
-### 自动管理内存
+### 9.2.2 自动管理内存
 
 `use_count` 返回共享指针的数量，`reset` 使指针重置，不再指向原来的对象
 ```cpp
@@ -348,13 +349,13 @@ A destructor
 
 3个 `std::shared_ptr` 被重置后，所指向的对象被自动销毁
 
-### 引用计数
+### 9.2.3 引用计数
 
 每创建一个指向当前对象的 `std::shared_ptr`，引用计数加一；每销毁一个则引用计数减一
 
 引用计数被减为0时，对象被自动销毁
 
-### 用法
+### 9.2.4 用法
 
 共享指针的用法同样和裸指针相同，可以发生拷贝，解引用等操作
 
@@ -424,7 +425,7 @@ auto aliasing {std::shared_ptr<int> {foo, &foo->m_data}};
 
 通常这个方法被用于**访问类成员**，我们希望访问类成员的时候，类对象不会被删除。所以我们通过别名**增加对类对象的控制权**，但是实际上访问的仍然是成员变量。
 
-### 危险行为
+### 9.2.6 危险行为
 
 ```cpp
 std::shared_ptr<int> p{new int(100)};
@@ -438,10 +439,10 @@ std::cout << *p <<std::endl;
 
 **所以使用智能指针时尽量避免手动`delete`**
 
-### 额外性能开销
+### 9.2.7 额外性能开销
 由于`std::shared_ptr`使用引用计数，所以不可避免地会带来额外的性能开销，在一些性能要求极为苛刻的情况下尽量避免使用共享指针
 
-### 环形依赖
+### 9.2.8 环形依赖
 先看代码
 ```cpp
 struct School;
@@ -512,16 +513,16 @@ _T--->T
 
 堆区数据不会被销毁，发生内存泄漏
 
-## 弱指针 `std::weak_ptr`
+## 9.3 弱指针 `std::weak_ptr`
 
 为了解决共享指针的环形依赖的问题，我们引入弱指针 `std::weak_ptr`
 
-### 语法
+### 9.3.1 语法
 >```cpp
 >std::weak_ptr<Type> p;
 >```
 
-### 用法
+### 9.3.2 用法
 
 `std::weak_ptr`本身是依赖于 `std::shared_ptr` 存在的，当使用 `std::weak_ptr` 访问资源的时候，必须把它临时转化成`std::shared_ptr` ，用来建模临时管理权。`std::weak_ptr` 存储的只是对资源的引用，且为非拥有的引用，即不能删除对象本身（弱引用），只能作为观察者告诉我们资源是否存在。`std::weak_ptr` 指向的对象可以被其他 `std::shared_ptr` 删除。
 
@@ -574,7 +575,7 @@ use_count == 1: 42
 use_count == 0: gw is expired
 ```
 
-### 解决环形依赖
+### 9.3.3 解决环形依赖
 ```cpp
 struct School;
 
@@ -611,7 +612,7 @@ School Destructor
 
 弱指针 `_school` 如果观察到 `university` 被销毁，则返回 `nullptr`，共享指针引用计数变为0，堆区数据被释放
 
-## `std::enable_shared_from_this`
+## 9.4 `std::enable_shared_from_this`
 
 `std::enable_shared_from_this` 派生的类允许对象调用方法，以安全地返回指向自己的shared_ptr或weak_ptr。如果没有这个基类，返回有效的shared_ptr或weak_ptr的一种方法是将weak_ptr作为成员添加到类中，并返回它的副本或返回由它构造的shared_ptr。enable_shared_from_this类给派生类添加了以下两个方法：
 
@@ -711,7 +712,7 @@ Bad::~Bad() called
 Bad::~Bad() called
 ```
 
-## 过时的、移除的 `auto_ptr`
+## 9.5 过时的、移除的 `auto_ptr`
 
 在C++11之前，老的标准库包含了一个智能指针的简单实现，称为auto_ptr。遗憾的是，它存在一些严重缺陷。auto_ptr在C++11/14弃用，在C++17移除。
 

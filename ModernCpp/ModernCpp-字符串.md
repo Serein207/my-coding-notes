@@ -1,33 +1,33 @@
-# Modern C++ 字符串
+# Chapter2. Modern C++ 字符串
 
-- [Modern C++ 字符串](#modern-c-字符串)
-  - [字符串字面量](#字符串字面量)
-  - [`std::string`](#stdstring)
-    - [构造函数](#构造函数)
-    - [赋值操作](#赋值操作)
-    - [字符串拼接](#字符串拼接)
-    - [查找](#查找)
-    - [替换](#替换)
-    - [比较](#比较)
-    - [字符串存取](#字符串存取)
-    - [插入和删除](#插入和删除)
-    - [子串](#子串)
-    - [与C风格字符串的兼容](#与c风格字符串的兼容)
-  - [原始字面量 *(raw string literal)*](#原始字面量-raw-string-literal)
-  - [标准用户定义字面量](#标准用户定义字面量)
-  - [`std::vector` 和字符串CTAD](#stdvector-和字符串ctad)
-  - [数值转换](#数值转换)
-    - [1. 高级数值转换函数](#1-高级数值转换函数)
+- [Chapter2. Modern C++ 字符串](#chapter2-modern-c-字符串)
+  - [2.1 字符串字面量](#21-字符串字面量)
+  - [2.2 `std::string`](#22-stdstring)
+    - [2.2.1 构造函数](#221-构造函数)
+    - [2.2.2 赋值操作](#222-赋值操作)
+    - [2.2.3 字符串拼接](#223-字符串拼接)
+    - [2.2.4 查找](#224-查找)
+    - [2.2.5 替换](#225-替换)
+    - [2.2.6 比较](#226-比较)
+    - [2.2.7 字符串存取](#227-字符串存取)
+    - [2.2.8 插入和删除](#228-插入和删除)
+    - [2.2.9 子串](#229-子串)
+    - [2.2.10 与C风格字符串的兼容](#2210-与c风格字符串的兼容)
+  - [2.3 原始字面量 *(raw string literal)*](#23-原始字面量-raw-string-literal)
+  - [2.4 标准用户定义字面量](#24-标准用户定义字面量)
+  - [2.5 `std::vector` 和字符串CTAD](#25-stdvector-和字符串ctad)
+  - [2.6 数值转换](#26-数值转换)
+    - [2.6.1 高级数值转换函数](#261-高级数值转换函数)
       - [数值转换为字符串](#数值转换为字符串)
       - [字符串转换为数值](#字符串转换为数值)
-    - [2. 低级数值转化](#2-低级数值转化)
+    - [2.6.2 低级数值转化](#262-低级数值转化)
       - [数值转换为字符串](#数值转换为字符串-1)
       - [字符串转换为数值](#字符串转换为数值-1)
-  - [`std::string_view` 字符串视图](#stdstring_view-字符串视图)
-    - [1. `std::string_view` 和临时字符串](#1-stdstring_view-和临时字符串)
-    - [2. `std::string_view` 字面量](#2-stdstring_view-字面量)
+  - [2.7 `std::string_view` 字符串视图](#27-stdstring_view-字符串视图)
+    - [2.7.1 `std::string_view` 和临时字符串](#271-stdstring_view-和临时字符串)
+    - [2.7.2 `std::string_view` 字面量](#272-stdstring_view-字面量)
 
-## 字符串字面量
+## 2.1 字符串字面量
 
 下面的代码输出字符串hello，这段代码包含这个字符串本身，而不是一个包含这个字符串的变量。
 
@@ -58,11 +58,11 @@ char arr[]{"hello"};
 arr[1] = 'a';
 ```
 
-## `std::string` 
+## 2.2 `std::string` 
 
 我们先来学习一下STL容器 `std::string`
 
-### 构造函数
+### 2.2.1 构造函数
 ```cpp  
 std::string s1;                 // string()
 
@@ -77,7 +77,7 @@ std::string s4(10, 'a');        // string(int n, char c)
 std::cout << "s4 = " << s4 << std::endl;
 ```
 
-### 赋值操作
+### 2.2.2 赋值操作
 ```cpp
 std::string str1;               // string &operator=(const char* s)
 str1 = "hello world";
@@ -108,7 +108,7 @@ str7.assign(10, 'a');           // string &assign(int n, char c)
 std::cout << "str7 = " << str7 << std::endl;
 ```
 
-### 字符串拼接
+### 2.2.3 字符串拼接
 ```cpp
 // string &operator+=(const char *c);
 std::string str1 = "hello ";
@@ -146,7 +146,7 @@ std::cout << "str3 = " << str3 << std::endl;
 srd::string = "hello " + "world";           // error
 ```
 
-### 查找
+### 2.2.4 查找
 ```cpp
 // find从左向右查找
 std::string str1 = "abcdefgde";
@@ -160,7 +160,7 @@ pos = str1.rfind("de");
 std::cout << "rfind position: " << pos << std::endl; // 7 绝对位置
 ```
 
-### 替换
+### 2.2.5 替换
 ```cpp
 std::string str1 = "abcdefg";
 
@@ -169,7 +169,7 @@ str1.replace(1, 3, "1111");  // 从1号位置起 3个字符替换为"1111"
 std::cout << "str1 = " << str1 << std::endl;  // a1111efg
 ```
 
-### 比较
+### 2.2.6 比较
 ```cpp
 std::string str1 = "hello";
 std::string str2 = "xello";
@@ -187,7 +187,7 @@ if (str1.compare(str2) == 0) {
 str1<str2
 ```
 
-### 字符串存取
+### 2.2.7 字符串存取
 ```cpp
 std::string str = "hello";
 
@@ -211,7 +211,7 @@ str.at(1) = 'x';
 std::cout << "str = " << str << std::endl;
 ```
 
-### 插入和删除
+### 2.2.8 插入和删除
 ```cpp
 std::string str = "hello";
 
@@ -224,7 +224,7 @@ str.erase(1, 3);
 std::cout << "str = " << str << std::endl;  // hello
 ```
 
-### 子串
+### 2.2.9 子串
 ```cpp
 std::string str = "abcdefg";
 std::string subStr = str.substr(1, 3);  // 从位置1开始截取3个字符
@@ -242,13 +242,13 @@ std::string userName = email.substr(0, position);
 std::cout << "user name: " << userName << std::endl;
 ```
 
-### 与C风格字符串的兼容
+### 2.2.10 与C风格字符串的兼容
 
 为了达到兼容的目的，还可应用string类的 `c_str()` 方法获得一个表示C风格字符串的 `const char` 指针。不过，一旦string执行任何内存重分配或string对象被销毁了，返回的这个const指针就失效了。永远不要从函数中返回在基于栈的string上调用 `c_str()` 的结果。
 
 还有一个 `data()` 方法，在C++14及更早的版本中，始终与 `c_str()` 一样返回 `const char*` 。从C++17起，在非const字符串上调用时， `data()` 返回 `char*`。
 
-## 原始字面量 *(raw string literal)*
+## 2.3 原始字面量 *(raw string literal)*
 
 当我们想要将如下内容写入引号时
 ```
@@ -318,7 +318,7 @@ std::cout << str << std::endl;
               4
 ```
 
-## 标准用户定义字面量
+## 2.4 标准用户定义字面量
 当我们使用 `auto` 推导字符串类型时，会推导为 `const char*` 类型，而不是我们更加希望的 `string` 类型。
 
 为此，C++11支持用户定义字面量
@@ -376,7 +376,7 @@ using namespace std::literals::string_literals;
 | `char`                     |
 | `const char*, std::size_t` |
 
-## `std::vector` 和字符串CTAD
+## 2.5 `std::vector` 和字符串CTAD
 
 对字符串使用CTAD时必须小心，以 `vector` 的以下声明为例：
 
@@ -392,11 +392,11 @@ std::vector names{"John", "Sam", "Joe"};
 std::vector names{"John"s, "Sam"s, "Joe"s};
 ```
 
-## 数值转换
+## 2.6 数值转换
 
 C++标准模板库提供了高级数值转换函数和低级数值转换函数。
 
-### 1. 高级数值转换函数
+### 2.6.1 高级数值转换函数
 
 std命名空间包含很多辅助函数，以便完成数值和字符串之间的转换，它们定义在 `<string>` 中，它们可以使数值与字符串之间的相互转换更加容易。
 
@@ -451,7 +451,7 @@ base的默认值为10，采用十进制，base为16表示采用十六进制。�
 - 如果数字以0开头，则被解析为八进制数字。
 - 其他情况下，被解析为十进制数字
 
-### 2. 低级数值转化
+### 2.6.2 低级数值转化
 
 C++也提供了许多低级数值转换函数，这些都在 `<charconv>` 头文件中定义。这些函数不执行内存分配，也不直接使用 `std::string` ，而是用又调用者分配的缓存区。
 
@@ -568,7 +568,7 @@ if (error2 == std::errc{})	std::cout << "Perfect roundtrip" << std::endl;
 else std::cout << "No perfect roundtrip?!?" << std::endl;
 ```
 
-## `std::string_view` 字符串视图
+## 2.7 `std::string_view` 字符串视图
 
 在C++17之前，为接收只读字符串的函数选择形参类型一直是一件进退两难的事情。有时，人们会编写同一个函数的多个重载版本，一个接收 `const chat*` ，另一个接收 `const std::string&`，但显然，这并不是一个优雅的解决方案。
 
@@ -660,7 +660,7 @@ result2.append(sv.data(), sv.size());
 >
 > 将 `std::string&` 或 `std::string_view` 存储为类的数据成员需要确保它们指向的字符串在对象的声明周期内保持有效状态。存储 `std::string` 更安全。
 
-### 1. `std::string_view` 和临时字符串
+### 2.7.1 `std::string_view` 和临时字符串
 
 `std::string_view` 不应该用于保存一个临时字符串的视图，考虑以下示例：
 
@@ -676,7 +676,7 @@ std::cout << sv;
 >
 > 永远不要使用 `std::string_view` 存储一个临时字符串的视图。
 
-### 2. `std::string_view` 字面量
+### 2.7.2 `std::string_view` 字面量
 
 可使用标准用户定义字面量 `sv`，将字符串字面量解释为 `std::string_view`。例如：
 
