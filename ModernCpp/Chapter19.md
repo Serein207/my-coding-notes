@@ -4,6 +4,13 @@
   - [19.1 variant](#191-variant)
   - [19.2 any](#192-any)
   - [19.3 tuple](#193-tuple)
+    - [19.3.1 分解元组](#1931-分解元组)
+      - [1. 结构化绑定](#1-结构化绑定)
+      - [2. tie()](#2-tie)
+    - [19.3.2 串联](#1932-串联)
+    - [19.3.3 比较](#1933-比较)
+    - [19.3.4 make\_from\_tuple()](#1934-make_from_tuple)
+    - [19.3.5 apply()](#1935-apply)
 
 ## 19.1 variant
 
@@ -196,3 +203,215 @@ using MyTuple = tuple<int, string, bool>;
 MyTuple t1 { 16, "Test", true };
 ```
 
+`std::get<i>()` 从tuple中获得第i个元素，i是从0开始的索引。返回值的类型是tuple中那个索引位置的正确类型：
+
+```cpp
+cout << format("t1 = ({}, {}, {})", get<0>(t1), get<1>(t1), get<2>(t1)) << endl; 
+// out: t1 = (16, Test, 1)
+```
+
+可通过 `<typeinfo>` 中的typeid()检查 `get<i>` 是否返回了正确的类型。下面这段代码的输出表明， `get<1>(t1)` 的返回值确实是std::string。
+
+```cpp
+cout << "Type of get<1>(t1) = " << typeid(get<1>(t1)).name() << endl;
+// out: Type of get<1>(t1) = class std::basic_string<char, struct std::char_traits<char>, class std::allocator<char>>
+```
+
+可以使用 `std::tuple_element` 类模板在编译期根据元素的索引获取元素的类型。tuple_element要求指定元组的类型，而不是像t1那样的实际元组实例。下面是示例：
+
+```cpp
+cout << "Type of element with index 2 = "
+     << typeid(tuple_element<2, MyTuple>::type).name() << endl; 		
+// out: Type of element with index 2 = bool
+```
+
+也可以根据类型使用 `std::get<T>()` 从tuple中提取元素，其中T是要提取的元素（而不是索引）的类型。如果tuple有多个所需类型的元素，编译器会发生错误。例如，可从t1中提取字符串元素：
+
+```cpp
+cout << "String = " << get<string>(t1) << endl;
+// out: String = Test
+```
+
+迭代tuple的值并不简单。无法编写简单循环或调用 `get<i>(MyTuple)` 等，因为i的值在编译期必须确定。一种可能的解决方案是使用模板元编程，这在以后会讲到。
+
+可通过std::tuple_size模板查询tuple的大小。和tuple_element一样，tuple_size要求指定tuple的类型而不是实例：
+
+```cpp
+cout << "Tuple size = " << tuple_size<MyTuple>::value << endl;
+// out: Tuple size = 3
+```
+
+如果不知道准确的tuple类型，可以使用decltype()来查询类型，如下所示：
+
+```cpp
+cout << "Tuple size = " << tuple_size<decltype(t1)>::value << endl;
+// out: Tuple size = 3
+```
+
+通过模板参数推导(CTAD)，在构造tuple时，可忽略模板参数类型，让编译期根据传递给构造函数的实参类型自动进行推导。例如，下面定义同样的t1元组，它包含一个整数、一个字符串和一个布尔值：
+
+```cpp
+std::tuple t1 { 16, "Test"s, true };
+```
+
+因为类型自动推导，不能通过&指定阴影。如果需要通过构造函数的CTAD方式生成一个包含引用或常量引用的tuple，那么需要分别使用ref()和cref()。例如，下面的构造会生成一个类型为 `tuple<int, const double&, string&>` 的tuple：
+
+```cpp
+double d { 3.14 };
+string str1 { "Test" };
+std::tuple t2 { 16, ref(d), cref(d), ref(str1) };
+```
+
+为测试元组t2中的double引用，下面的代码首先将double的值输出，然后调用 `get<1>(t2)`，这个函数实际上返回的是对d的引用，因为第二个tuple（索引1）元素使用了ref(d)。第二行修改引用的变量的值，最后一行展示了d的值的确通过保存在tuple中的引用修改了。注意，第三行不能通过编译，因为cref(d)用于第三个tuple元素，也就是说，它是d的常量引用。
+
+```cpp
+cout << "d = " << d << endl;
+get<1>(t2) *= 2;
+// get<1>(t2) *= 2; // Error: cerf()
+cout << "d = " << get<1>(t2) << endl; 
+// out: d = 3.14;
+//      d = 6.28
+```
+
+如果不适用构造函数的CTAD方法，可以使用 `std::make_tuple()` 工具函数创建一个tuple。由于它是函数模板，支持模板参数推导，因此允许通过仅指定实际值来创建元组。在编译期自动推导类型，例如：
+
+```cpp
+auto t2 { std::make_tuple(16, ref(d). cref(d), ref(str1)) };
+```
+
+### 19.3.1 分解元组
+
+可采用两种方法，将一个元组分解为单独的元素：结构化绑定以及std::tie()。
+
+#### 1. 结构化绑定
+
+结构化绑定在C++17中可用，允许方便地将一个元组分解为多个变量。例如，下面的代码定义了一个tuple，这个tuple包括一个整数，一个字符串和一个布尔值；此后，使用结构化绑定，将这个tuple分解为3个独立的变量：
+
+```cpp
+tuple t1 { 16, "Test"s, true };
+auto [i, str, b] { t1 };
+cout << format("Decomposed: i = {}, str = \"{}\", b = {}", i, str, b) << endl;
+```
+
+还可以将元组分解为引用，允许通过引用修改元组的内容，示例如下：
+
+```cpp
+auto& [i2, str2, b2] { t1 };
+i2 *= 2;
+str2 = "Hello world";
+b2 = !b2;
+```
+
+使用结构化绑定，无法在分解元组时忽略特定元素。如果元组包含3个元素，则结构化绑定需要3个变量。如果想忽略元素，则必须使用tie()。
+
+#### 2. tie()
+
+如果在分解元组时不使用结构化绑定，可以使用 `std::tie()` 工具函数，它生成一个引用的tuple。下例首先创建一个tuple，然后创建3个变量，将这些变量出书。`tie(i, str, b)` 会创建一个tuple，其中包含对i, str和b的引用。使用赋值运算符，将tuple t1赋给tie()的结果。由于tie()的结果是一个引用的tuple，赋值实际上更改了三个变量的值：
+
+```cpp
+tuple t1 { 16, "Test", true };
+int i { 0 };
+string str;
+bool b { false }; 
+cout << format("Before: i = {}, str = \"{}\", b = {}\n", i, str, b) << endl;
+tie(i, str, b) = t1; 	
+cout << format("After: i = {}, str = \"{}\", b = {}\n", i, str, b) << endl;
+```
+
+**output**
+
+```
+Before: i = 0, str = "", b = 0
+After: i = 16, str = "Test", b = 1
+```
+
+有了tie()，可忽略一些不想分解的元素。并非使用分解值的变量名，而使用特殊的std::ignore值。例如，t1元组的string元素可以被忽略，用下面的语句替换前面的tie()语句：
+
+```cpp
+tie(i, ignore, b) = t1;
+```
+
+### 19.3.2 串联
+
+通过std::tuple_cat()可将两个tuple串联为一个。在下面的例子中，t3的类型为 `tuple<int, string, bool, double, string>`：
+
+```cpp
+tuple t1 { 16, "Test"s, true };
+tuple t2 { 3.14, "String 2"s };
+auto t3 { tuple_cat(t1, t2) }; 	
+```
+
+### 19.3.3 比较
+
+tuple支持所有比较运算符。为了能使用这些比较运算符，tuple中存储的元素类型也应该支持这些操作。例如：
+
+```cpp
+tuple t1 { 123, "def" };
+tuple t2 { 123, "abc" };
+if (t1 < t2) {
+  cout << "t1 < t2" << endl;
+} else {
+  cout 	<< "t1 >= t2" << endl;
+}
+```
+
+**output**
+
+```
+t1 >= t2
+```
+
+对于包含多个数据成员的自定义类型，tuple比较可用于方便地实现这些类型的按词典比较运算符。例如，如下的类包含3个数据成员：
+
+```cpp
+class Foo {
+public:
+  Foo(int i, string s, bool b) : m_int { i }, m_str { move(s) }, m_bool { b } {}
+private:
+  int m_int; 	
+  string 	m_str;
+  bool m_bool;
+};
+```
+
+正确实现该类的完整比较运算符并不简单。通过std::tie()和C++20三向比较运算符，它就变成了简单的一行程序。下面是Foo类运算符 `<=>` 方法的实现：
+
+```cpp
+auto operator<=>(const Foo& rhs) {
+  return tie(m_int, m_str, m_bool) <=>
+   tie(rhs.m_int, rhs.m_str, rhs.m_bool);
+}
+```
+
+### 19.3.4 make_from_tuple()
+
+使用 `std::make_from_tuple<T>()` 可以构建一个T类型的对象，将给定tuple的元素作为参数传递给T的构造函数。例如，有以下类：
+
+```cpp
+class Foo {
+public:
+  Foo(string str, int i) : m_str { move(str) }, m_int { i } {}
+private:
+  string m_str;
+  int m_int;
+};
+```
+
+可按如下方式使用make_from_tuple()：
+
+```cpp
+auto myTuple { "Hello world.", 42 };
+auto foo { make_from_tuple<Foo>(myTuple) };
+```
+
+从技术上讲，提供给make_from_tuple()的实参未必是一个tuple，但必须支持 `std::get<>()` 和 `tuple_size`。std::array和pair也满足这些要求。
+
+### 19.3.5 apply()
+
+`std::apply()` 调用给定的函数、lambda表达式和函数对象等，将给定tuple的元素作为实参传递，下面是一个例子：
+
+```cpp
+int add(int a, int b) { return a + b; }
+...
+cout << apply(add, tuple { 39, 3 }) << endl;
+```
