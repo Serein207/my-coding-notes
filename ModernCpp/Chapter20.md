@@ -465,7 +465,7 @@ cout << my3DGrid[2][1][2] << endl;
 
 ## 20.5 可变参数模板
 
-可变参数模板(variadic template)可接收可变数目的模板参数。例如，下面的代码定义了一个模板，它可以接收任何数目的模板参数，使用称为Types的参数包(parameter pack)：
+**可变参数模板(variadic template)** 可接收可变数目的模板参数。例如，下面的代码定义了一个模板，它可以接收任何数目的模板参数，使用称为Types的 **参数包(parameter pack)** ：
 
 ```cpp
 template <typename... Types>
