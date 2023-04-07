@@ -78,7 +78,7 @@ An std::string
 Exception: bad variant access
 ```
 
-为避免异常，可使用 `std::ger_if<index>()` 或 `get_if<T>()` 辅助函数。这些函数接收指向variant的指针，返回指向请求值的指针；如果遇到错误，返回nullptr。
+为避免异常，可使用 `std::get_if<index>()` 或 `get_if<T>()` 辅助函数。这些函数接收指向variant的指针，返回指向请求值的指针；如果遇到错误，返回nullptr。
 
 ```cpp
 string* theString { std::ger_if<string>(&v) };
@@ -234,7 +234,7 @@ cout << "String = " << get<string>(t1) << endl;
 
 迭代tuple的值并不简单。无法编写简单循环或调用 `get<i>(MyTuple)` 等，因为i的值在编译期必须确定。一种可能的解决方案是使用模板元编程，这在以后会讲到。
 
-可通过std::tuple_size模板查询tuple的大小。和tuple_element一样，tuple_size要求指定tuple的类型而不是实例：
+可通过 `std::tuple_size` 模板查询tuple的大小。和tuple_element一样，tuple_size要求指定tuple的类型而不是实例：
 
 ```cpp
 cout << "Tuple size = " << tuple_size<MyTuple>::value << endl;
@@ -333,7 +333,7 @@ tie(i, ignore, b) = t1;
 
 ### 19.3.2 串联
 
-通过std::tuple_cat()可将两个tuple串联为一个。在下面的例子中，t3的类型为 `tuple<int, string, bool, double, string>`：
+通过 `std::tuple_cat()` 可将两个tuple串联为一个。在下面的例子中，t3的类型为 `tuple<int, string, bool, double, string>`：
 
 ```cpp
 tuple t1 { 16, "Test"s, true };
@@ -374,7 +374,7 @@ private:
 };
 ```
 
-正确实现该类的完整比较运算符并不简单。通过std::tie()和C++20三向比较运算符，它就变成了简单的一行程序。下面是Foo类运算符 `<=>` 方法的实现：
+正确实现该类的完整比较运算符并不简单。通过 `std::tie()` 和C++20三向比较运算符，它就变成了简单的一行程序。下面是Foo类运算符 `<=>` 方法的实现：
 
 ```cpp
 auto operator<=>(const Foo& rhs) {
