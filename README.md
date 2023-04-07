@@ -9,28 +9,28 @@ Modern C++ 内容主要摘自《C++20高级编程》和cppreference.com
 ## Modern C++ 目录
 
 - 第I部分 C++简介
-  - 1. [基础语法](ModernCpp/Chapter01.md)
-  - 2. [字符串](ModernCpp/Chapter02.md)
-  - 3. [format](ModernCpp/Chapter03.md)
-  - 4. [初始化](ModernCpp/Chapter04.md)
-  - 5. [常量](ModernCpp/Chapter05.md)
-  - 6. [类型](ModernCpp/Chapter06.md)
-  - 7. [引用](ModernCpp/Chapter07.md)
+  - Chapter1 [基础语法](ModernCpp/Chapter01.md)
+  - Chapter2 [字符串](ModernCpp/Chapter02.md)
+  - Chapter3 [format](ModernCpp/Chapter03.md)
+  - Chapter4 [初始化](ModernCpp/Chapter04.md)
+  - Chapter5 [常量](ModernCpp/Chapter05.md)
+  - Chapter6 [类型](ModernCpp/Chapter06.md)
+  - Chapter7 [引用](ModernCpp/Chapter07.md)
 - 第II部分 C+编码方法
-  - 8. [类和对象](ModernCpp/Chapter08.md)
-  - 9. [智能指针](ModernCpp/Chapter09.md)
-  - 10. [模块](ModernCpp/Chapter10.md)
-  - 11. [类模板](ModernCpp/Chapter11.md)
-  - 12. [函数模板&变量模板](ModernCpp/Chapter12.md)
-  - 13. [概念和约束](ModernCpp/Chapter13.md)
-  - 14. [异常](ModernCpp/Chapter14.md)
-  - 15. [标准库容器](ModernCpp/Chapter15.md)
-  - 16. [函数指针，函数对象，lambda表达式](ModernCpp/Chapter16.md)
-  - 17. [字符串本地化](ModernCpp/Chapter17.md)
-  - 18. [正则表达式](ModernCpp/Chapter18.md)
-  - 19. [variant, any, tuple](ModernCpp/Chapter19.md)
+  - Chapter8 [类和对象](ModernCpp/Chapter08.md)
+  - Chapter9 [智能指针](ModernCpp/Chapter09.md)
+  - Chapter10 [模块](ModernCpp/Chapter10.md)
+  - Chapter11 [类模板](ModernCpp/Chapter11.md)
+  - Chapter12 [函数模板&变量模板](ModernCpp/Chapter12.md)
+  - Chapter13 [概念和约束](ModernCpp/Chapter13.md)
+  - Chapter14 [异常](ModernCpp/Chapter14.md)
+  - Chapter15 [标准库容器](ModernCpp/Chapter15.md)
+  - Chapter16 [函数指针，函数对象，lambda表达式](ModernCpp/Chapter16.md)
+  - Chapter17 [字符串本地化](ModernCpp/Chapter17.md)
+  - Chapter18 [正则表达式](ModernCpp/Chapter18.md)
+  - Chapter19 [variant, any, tuple](ModernCpp/Chapter19.md)
 - 第III部分 C++高级特性
-  - 20. [高级模板](ModernCpp/Chapter20.md)
+  - Chapter20 [高级模板](ModernCpp/Chapter20.md)
 
 ## C++基础语法 目录
 
