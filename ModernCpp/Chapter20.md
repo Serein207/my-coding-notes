@@ -641,3 +641,110 @@ MyClass<> c;
 试图对b调用Mixin2Func()会产生编译错误，因为b并非继承自Mixin2类。
 
 ### 20.5.3 折叠表达式
+
+C++支持折叠表达式。这样一来，将可更容易地在可变参数模板中处理参数包。下标列出了4种折叠类型。该表中，⊕可以是任意运算符。
+
+| 名称       | 表达式            | 含义                                      |
+| ---------- | ----------------- | ----------------------------------------- |
+| 一元右折叠 | `(pack⊕...)`      | $pack_0⊕(...⊕(pack_{n-1}⊕pack_n))$        |
+| 一元左折叠 | `(...⊕pack)`      | $((pack_0⊕pack_1)⊕...)⊕pack_n$            |
+| 二元右折叠 | `(pack⊕...⊕Init)` | $pack_0⊕(...⊕(pack_{n-1}⊕(pack_n⊕Init)))$ |
+| 二元左折叠 | `(Init⊕...⊕pack)` | $(((Init⊕pack_0)⊕pack_1)⊕...)⊕pack_n$     |
+
+下面分析一些示例。以递归方式定义前面的processValues()函数模板，如下所示：
+
+```cpp
+void processValues() {} // base case to stop recursion
+
+template <typename T1, typename... Tn>
+void processValues(T1 arg1, Tn... args) {
+  handleValue(arg1);
+  processValues(args...);
+}
+```
+
+由于以递归方式定义，因此需要基本情形来停止递归。使用折叠表达式，利用一元右折叠，通过当个函数来实现。此时，不需要基本情形。
+
+```cpp
+template <typename... Tn>
+void processValues(const Tn&... args) {
+  (handleValue(args), ...);
+}
+```
+
+基本上，函数体中的 `...` 触发折叠。拓展这一行，针对参数包中的每个参数调用handleValue()，对handleValue()的每个调用用逗号分割。例如，假设args是包含3个参数（a1, a2, a3）的参数包。一元右折叠拓展后的形式如下：
+
+```cpp
+(handleValue(a1), handleValue(a2), handleValue(a3));
+```
+
+下面是另一个示例。printValues()函数模板将所有实参写入控制台，实参使用换行符分开。
+
+```cpp
+template <typename... Values>
+void printValues(const Values&... values) {
+  ((cout << values << endl), ...);
+}
+```
+
+假设values是包含3个参数(v1, v2, v3)的参数包，一元右折叠拓展后的形式如下：  
+
+```cpp
+((cout << v1 << endl;), ((cout << v2 << endl;), (cout << v3 << endl;)));
+```
+
+调用printValues()时可使用任意数量的实参，如下所示：
+
+```cpp
+printValues(1, "test", 2.34);
+```
+
+在这些实例中，将折叠与逗号运算符结合使用，但实际上，折叠可与任何类型的运算符结合使用。例如，以下代码定义了可变参数函数模板，使用二元左折叠计算传给它的所有值之和。二元左折叠始终需要一个Init值。因此，sumValues()由有两个模板类型参数：一个是普通参数，用于指定Init的类型；另一个是参数包，可接收0个或多个实参。
+
+```cpp
+template <typename T, typename... Values>
+double sumValues(const T& init, const Values&... values) {
+  return (init + ... + values);
+}
+```
+
+假设values是包含3个参数(v1, v2, v3)的参数包。二元左折叠拓展后的形式如下：
+
+```cpp
+return (((init + v1) + v2) + v3);
+```
+
+sumValues()函数模板的使用方式如下：
+
+```cpp
+cout << sumValues(1, 2, 2.3) << endl;
+cout << sumValues(1) << endl;
+```
+
+该函数模板至少需要一个参数，因此以下代码无法编译：
+
+```cpp
+cout << sumValues() << endl;
+```
+
+sumValues()函数模板也可以按照一元左折叠定义，如下所示，这仍然需要在调用sumValues()时提供至少一个参数。
+
+```cpp
+template <typename... Values>
+double sumValues(const Values&... values) { return (... + values); }
+```
+
+长度为0的参数包允许一元折叠，但只能和逻辑与，逻辑或和逗号运算符结合使用。例如：
+
+```cpp
+template <typename... Values>
+double allTrue(const Values&... values) { return (... && values); }
+
+template <typename... Values>
+double anyTrue(const Values&... values) { return (... || values); }
+
+int main() {
+  cout << allTrue(1, 1, 0) << allTrue(1, 1) << allTrue() << endl;
+  cout << anyTrue(1, 1, 0) << anyTrue(0, 0) << anyTrue() << endl;
+}
+```
