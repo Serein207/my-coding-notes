@@ -9,6 +9,7 @@
     - [21.3.1 `constexpr if`](#2131-constexpr-if)
     - [21.3.2 使用编译期整数序列和折叠](#2132-使用编译期整数序列和折叠)
   - [21.4 类型trait](#214-类型trait)
+    - [21.4.1 使用类型类别](#2141-使用类型类别)
 
 ## 21.1 编译期阶乘
 
@@ -32,7 +33,7 @@ int main() {
 }
 ```
 
-这将计算6的阶乘，数学表达式为6!。
+这将计算6的阶乘，数学表达式为 `6!`。
 
 > **注意**
 >
@@ -241,3 +242,68 @@ tuplePrint(t1);
 ```
 
 ## 21.4 类型trait
+
+通过类型trait可在编译时根据类型做出决策。例如，可验证一个类型是否从另一个类型派生而来、是否可以转换为另一个类型、是否是整型等。C++标准提供了大量可供选择的类型trait类。所有与类型trait相关的功能都定义在 `<type_traits>` 中。
+
+类型trait是一个非常高级的C++功能，这里不可能解释类型trait的所有细节。下面列举几个例子，展示如何使用类型trait。
+
+### 21.4.1 使用类型类别
+
+在给出使用类trait的模板示例前，首先要了解一下诸如 `std::is_integral` 的类的工作方式。C++标准对integral_constant类的定义如下所示：
+
+```cpp
+template <class T, T v>
+struct integral_constant {
+  static constexpr T value { v };
+  using value_type = T;
+  using type = integral_constant<T, v>;
+  constexpr operator value_type() const noexcept { return value; }
+  constexpr value_type operator()() const noexcept { return value; }
+};
+```
+
+这也定义了bool_constant, true_type和false_type类型别名：
+
+```cpp
+template <bool B>
+using bool_constant = integral_constant<bool, B>;
+
+using true_type = bool_constant<true>; 	
+using false_type = bool_constant<false>;
+```
+
+当调用 `true_type::value` 时，得到的值是true；调用 `false_type::value` 时，得到的值是false。还可调用 `true_type::type` 返回true_type类型。这同样适用于false_type。像is_integral这样检查类型是否为整型和is_class这样检查类型是否为类类型的类，都继承自true_type或者false_type。例如，is_integral为类型bool特化，如下：
+
+```cpp
+template <> struct is_integral<bool> : public true_type {}; 
+```
+
+这样就可以编写 `std::is_integral<bool>::value` ，并返回true。注意，不需要编写这些特化，这些是标准库的一部分。
+
+下面的代码演示了使用类型类别的最简单例子：
+
+```cpp
+if (is_integral<int>::value) { cout << "int is integral" << endl; }
+else { cout << "int is not integral" << endl; }
+
+if (is_class<string>::value) { cout << "string is a class" << endl; }
+else { cout << "string is not integral" << endl; }
+```
+
+**output**
+
+```
+int is integral
+string is a class
+```
+
+对于每一个具有value的成员trait，C++添加了一个变量模板，它与trait同名，后跟_v。编写 `some_trait_v<T>`，例如 `is_integral_v<T>` 和 `is_const_v<T>` 等。下面用变量模板重写了前面的例子：
+
+```cpp
+if (is_integral_v<int>) { cout << "int is integral" << endl; }
+else { cout << "int is not integral" << endl; }
+
+if (is_class_v<string>) { cout << "string is a class" << endl; }
+else { cout << "string is not integral" << endl; }
+```
+
