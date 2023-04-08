@@ -502,6 +502,142 @@ class MyVariadicTemplate {};
 
 ### 20.5.1 类型的安全的变长参数列表
 
+可变参数模板允许创建类型安全的变长参数列表。下面的例子定义了一个可变参数模板processValues()，它允许以类型安全的方式接收不同类型的可变数目的参数。函数processValues()会处理变长参数列表中的每个值，对每个参数执行handleValue()函数。这意味着必须对每种要处理的类型编写handleValue()函数。
+
+```cpp
+void handleValue(int value) { cout << "Integer: " << value << endl; }
+void handleValue(double value) { cout << "Double: " << value << endl; }
+void handleValue(string_view value) { cout << "String: " << value << endl; }
+
+void processValues()     // Base case to stop recursion
+{/* Nothing to do in this base case. */}
+
+template <typename T1, typename... Tn>
+void processValues(T1 arg1, Tn... args) {  
+  handleValue(arg1);
+  processValues(args...);
+}
+```
+
+在这个例子中，三点运算符 `...` 用了两次。这个运算符出现在3个地方，有两个不同的含义。首先，在模板参数表中typename后面以及函数参数列表中类型Tn后面。在这两种情况下，它都表示参数包。参数包可接收可变数目的参数。
+
+`...` 运算符的第二种用法是在函数体中参数名args的后面。在这种情况下，它表示参数包拓展。这个运算符会解包/展开参数包，得到各个参数。它基本上提取运算符左边的内容，为包中的每个模板参数重复改内容，并用逗号隔开。从前面的例子中取出以下行：
+
+```cpp
+processValues(args...);
+```
+
+这一行将args参数包解包为不同参数，通过逗号分隔参数，然后用这些展开的参数调用processValues()函数。模板总是需要至少一个模板参数：T1。通过args...递归调用processValues()的结果是：每次调用都会少一个模板参数。
+
+由于processValues()函数的实现是递归的，因此需要采用一种方法停止递归。为此，实现一个processValues()函数，要求它接收零个参数。
+
+可通过下面的代码测试processValues()可变参数模板：
+
+```cpp
+processValues(1, 2, 3.56, "test", 1.1f);
+```
+
+这个例子生成的递归调用是：
+
+```cpp
+processValues(1, 2, 3.56, "test", 1.1f);
+  handleValue(1);
+  processValues(2, 3.56, "test", 1.1f);
+    handleValue(2);
+    processValues(3.56, "test", 1.1f); 	
+      handleValue(3.56);
+      processValues("test", 1.1f);
+        handleValues("test");
+        processValues(1.1f);
+          handleValues(1.1f);
+          processValues();
+```
+
+这种变长参数列表是完全类型安全的。processValues()函数会根据实际自动调用正确的handleValue()重载版本。C++也会自动执行类型转换。然而，如果调用processValues()时带有某种类型的参数，而这种类型没有对应的handleValue()函数，编译器会产生错误。
+
+前面的实现存在一个小问题。由于这是一个递归实现，因此每次递归调用processValues()时都会复制参数。根据参数的类型，这种做法的代价可能会很高。
+
+为了避免复制，可使用 **转发引用(forwarding references)** 。以下实现使用了转发引用T&&，还是用 `std::forwarding()` 完美转发所有参数。完美转发意味着，如果把rvalue传递给processValues()，就将它作为rvalue引用转发；如果把lvalue或lvalue引用传递给processValues()，就将他作为lvalue转发。
+
+```cpp
+void processValues() {} // base case to stop recursion
+
+template <typename T1, typename... Tn>
+void processValues(T1&& arg1, Tn&&... args) {
+  handleValue(std::forward<T1>(arg1));
+  processValues(std::forward<Tn>(args)...);
+}
+```
+
+有一行代码需要做进一步解释：
+
+```cpp
+processValues(std::forward<Tn>(args)...);
+```
+
+`...` 运算符用于解开参数包，它在参数包中的每个参数上使用 `std::forward()`，用逗号把它们隔开。例如，假设args是一个参数包，有3个参数(a1, a2, a3)，分别对应3中类型(A1, A2, A3)，拓展后的调用如下：
+
+```cpp
+processValues(std::forward<A1>(a1), 
+    std::forward<A2>(a2), 
+    std::forward<A3>(a3));
+```
+
+在使用了参数包的函数体中，可通过以下方法获得参数包中参数的个数：
+
+```cpp
+int numOfArguments { sizeof...(args) };
+```
+
+> **注意**
+>
+> 只有当T作为函数或方法模板的一个模板参数时，T&&才是转发引用。如果一个类方法有给T&&参数，但是T是类模板参数而不是方法本身的参数，那么T&&就不是一个转发按引用，而是右值引用。这是因为当编译器开始用T&&处理那个方法时，类模板参数T已经被解析为一个具体类型，例如int，那时方法参数已经被 `int&&` 替换。
+
 ### 20.5.2 可变数目的混入类
+
+参数包几乎可用在任何地方。例如，下面的代码使用了一个参数包为MyClass类定义了可变数目的混入类。
+
+```cpp
+class Mixin1 {
+public:
+  Mixin1(int i) : m_value { i } {}
+  virtual void mixin1Func() { cout << "Mixin1: " << m_value << endl; }
+private:
+  int m_value;
+};
+
+class Mixin2 {
+public:
+  Mixin2(int i) : m_value { i } {}
+  virtual void mixin2Func() { cout << "Mixin2: " << m_value << endl; }
+private:
+  int m_value;
+};
+
+template <typename... Mixins>
+class MyClass : public Mixins... {
+public:
+  MyClass(const Mixins&... mixins) : Mixins { mixins }... {}
+  virtual ~MyClass() = default;
+};
+```
+
+上述代码首先定义了两个混入类Mixin1和Mixin2。MyClass可变参数模板使用参数包 `typename... Mixins` 接收可变数目的混入类。MyClass继承所有的混入类，其构造函数接收同样数目的参数来初始化每一个继承的混入类。MyClass可以这样用：
+
+```cpp
+MyClass<Mixin1, Mixin2> a { Mixin1{11}, Mixin2{22} };
+a.mixin1Func();
+a.mixin2Func();
+
+MyClass<Mixin1> b { Mixin1{33} };
+b.mixin1Func(); 
+// b.mixin2Func(); 
+
+MyClass<> c;
+// a.mixin1Func();
+// a.mixin2Func();
+```
+
+试图对b调用Mixin2Func()会产生编译错误，因为b并非继承自Mixin2类。
 
 ### 20.5.3 折叠表达式
