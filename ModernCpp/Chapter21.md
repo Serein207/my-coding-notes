@@ -592,7 +592,7 @@ cout << negation_v<is_integral<int>> << " ";
 
 ### 21.4.7 静态断言
 
-static_assert允许在编译期对断言求值。断言需要时true，如果断言是false，编译器就会报错。static_assert调用接收两个参数：编译期求值的表达式和字符串。当表达式为false时，编译期将给出包含指定字符串的错误提示。下例核实是否在使用64位编译器进行编译：
+static_assert允许在编译期对断言求值。断言需要是true，如果断言是false，编译器就会报错。static_assert调用接收两个参数：编译期求值的表达式和字符串。当表达式为false时，编译期将给出包含指定字符串的错误提示。下例核实是否在使用64位编译器进行编译：
 
 ```cpp
 static_assert(sizeof(void*) == 8, "Requires 64-bit complication.");
