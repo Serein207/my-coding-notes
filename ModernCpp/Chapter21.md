@@ -10,6 +10,12 @@
     - [21.3.2 使用编译期整数序列和折叠](#2132-使用编译期整数序列和折叠)
   - [21.4 类型trait](#214-类型trait)
     - [21.4.1 使用类型类别](#2141-使用类型类别)
+    - [21.4.2 使用类型关系](#2142-使用类型关系)
+    - [21.4.3 使用条件类型trait](#2143-使用条件类型trait)
+    - [21.4.4 使用enable\_if](#2144-使用enable_if)
+    - [21.4.5 使用constexpr if简化enable\_if结构](#2145-使用constexpr-if简化enable_if结构)
+    - [21.4.6 逻辑运算符trait](#2146-逻辑运算符trait)
+    - [21.4.7 静态断言](#2147-静态断言)
 
 ## 21.1 编译期阶乘
 
@@ -307,3 +313,323 @@ if (is_class_v<string>) { cout << "string is a class" << endl; }
 else { cout << "string is not integral" << endl; }
 ```
 
+当然，你可能永远都不会采用这种方式使用类型trait。只有结合模板根据类型的某些属性生成代码时，类型trait才更有用。下面的模板示例演示了这一点。代码动议了函数模板processHelper()的两个重载版本，这个函数模板接收一种类型作为模板参数。第一个参数是一个值，第二个参数是true_type或false_type实例。process()函数模板接收一个参数，并调用processHelper()函数：
+
+```cpp
+template <typename T>
+void processHelper(const T& t, true_type) {
+  cout << t << " is an integral type." << endl;
+}
+
+template <typename T>
+void processHelper(const T& t, false_type) {
+  cout << t << " is not an integral type." << endl;
+}
+
+template <typename T>
+void process(const T& t) {
+  processHelper(t, typename is_integral<T>::type{});
+}
+```
+
+processHelper()函数调用的第二个参数定义如下：
+
+```cpp
+typename is_integral<T>::type{}
+```
+
+该参数使用is_integral判断T是否为整数类型。使用 `::type` 访问结果integral_constant类型，可以是true_type或false_type。processHelper()函数需要true_type或false_type的一个实例作为第二个参数，这也是 `::type` 后面有 `{}` 的原因。注意，processHelper()函数的两个重载版本使用了类型为true_type或false_type的匿名参数，因为在函数体内没有使用这些参数，这些参数仅用于函数重载解析。
+
+前面的例子只是使用单个函数模板来编写，但没有说明如何使用类型trait，以基于类型选择不同的重载。
+
+```cpp
+template <typename T>
+void process(const T& t) {
+  if constexpr (is_integral_v<T>) {
+    cout << t << " is an integral type." << endl;
+  } else {
+    cout << t << " is not an integral type." << endl;
+  }
+}
+```
+
+### 21.4.2 使用类型关系
+
+有3中类型关系：is_same, is_base_of和is_convertible。下面给出一个例子来展示如何使用is_same。其余类型关系的工作原理类似。
+
+下面的same()函数模板通过is_same类型trait特性判断两个给定参数是否类型相同，然后输出相应的信息。
+
+```cpp
+template <typename T1, typename T2>
+void same(const T1& t1, const T2& t2) {
+  bool areTypesTheSame { is_same_v<T1, T2> };
+  cout << format("'{}' and '{}' are {} types.", t1, t2,
+    (areTypesTheSame ? "the same" : "difference")) << endl;
+}
+int main() {
+  same(1, 32);
+  same(1, 3.01);
+  same(3.01, "test"s);
+}
+```
+
+**output**
+
+```
+'1' and '32' are the same types. 
+'3.01' and 'test' are difference types.
+'3.01' and 'test' are difference types.
+```
+
+### 21.4.3 使用条件类型trait
+
+标准库辅助函数模板 `std::move_is_noexcept()` 可以根据移动构造函数是否标记为noexcept，来有条件地调用移动构造函数还是拷贝构造函数。标准库没有提供类似的辅助函数模板，根据移动赋值运算符是否标记为noexcept，选择调用移动赋值运算符还是拷贝赋值运算符。现在已经了解了模板元编程和类型trait，来看看如何实现自己的 `move_assign_if_noexcept()`。
+
+如果移动构造函数标记为noexcept，move_if_noexcept()只会将给定的引用转换为右值引用，否则将转换为const引用。move_assign_if_noexcept()需要做类似的事情，如果移动赋值运算符标记为noexcept，则将给定的引用转换为右值引用，否则将转换为const引用。
+
+`std::conditional` 类型trait可用于实现条件，而 `is_nothrow_move_assignable` 类型trait可用于判断某个类型是否有标记为noexcept的移动赋值运算符。条件类型trait有3个模板参数：一个布尔型，一个布尔型标记为true的类型以及一个布尔型为false的类型。下面是整个函数模板：
+
+```cpp
+template <typename T>
+constexpr std::conditional<std::is_nothrow_move_assignable_v<T>, 
+                           T&&, const T&>::type
+move_assign_if_noexcept(T& t) noexcept {
+  return std::move(t);
+}
+```
+
+C++标准为具有类型成员（比如conditional）的trait定义了别名模板。它们与trait具有相同的名称，但是附加了 `_t`。对于如下写法：
+
+```cpp
+std::conditional<std::is_no_throw_move_assignable_v<T>, T&&, const T&>::type
+```
+
+可以改为这样写：
+
+```cpp
+std::conditional_t<std::is_nothrow_move_assignment_v<T>, T&&, const T&>
+```
+
+可以对move_assign_if_noexcept()函数模板进行以下测试：
+
+```cpp
+class MoveAssignable {
+public:
+  MoveAssignable& operator=(const MoveAssignable&) {
+    cout << "copy assign" << endl; return *this;
+  }
+  MoveAssignable& operator=(MoveAssignable&&) {
+    cout << "move assign" << endl; return *this;
+  } 
+};
+
+class MoveAssignableNoexcept {
+public:
+  MoveAssignableNoexcept& operator=(const MoveAssignableNoexcept&) {
+    cout << "copy assign" << endl; return *this;
+  }
+  MoveAssignableNoexcept& operator=(MoveAssignableNoexcept&&) {
+    cout << "move assign" << endl; return *this;
+  } 
+};
+
+int main() {
+  MoveAssignable a, b;
+  a = move_assign_if_noexcept(b); 
+  MoveAssignableNoexcept c, d;
+  c = move_assign_if_noexcept(d);
+}
+```
+
+**output**
+
+```
+copy assign
+move assign
+```
+
+### 21.4.4 使用enable_if
+
+使用enable_if需要了解 **“替换失败不是错误”(Substitution Failure Is Not An Error, SFINAE)** 特性。它规定，为一组给定的模板参数特化函数模板失败不会被视为编译错误。相反，这样的特化应该从函数重载集合中移除。下面仅讲解SFINAE的的基础知识。
+
+如果有一组重载函数，就可以使用enable_if根据某些类型特性有选择地仅有某些重载。enable_if通常用于重载函数的返回类型。enable_if接收两个模板类型参数。第一个参数是布尔值，第二个参数是默认为void的类型。如果布尔值是true，enable_if类就有一种可使用 `::type` 访问的嵌套类型，这种嵌套类型由第二个模板类型参数给定。如果布尔值是false，就没有嵌套类型。
+
+通过enable_if，可将前面使用same()函数模板的例子重写为一个重载的checkType()函数模板。在这个版本中，checkType()函数根据给定值的类型是否相同，返回true或false。如果不希望checkType()返回任何内容，可删除return语句，可删除enable_if的第二个模板类型参数，或用void替换。
+
+```cpp
+template <typename T1, typename T2>
+enable_if_t<is_same_v<T1, T2>, bool>
+checkType(const T1& t1, const T2& t2) {
+  cout << format("'{}' and '{}' are the same types.", t1, t2) << end;
+  return true;
+}
+
+template <typename T1, typename T2>
+enable_if_t<!is_same_v<T1, T2>, bool>
+checkType(const T1& t1, const T2& t2) {
+  cout << format("'{}' and '{}' are different types.", t1, t2) << endl;
+  return false;
+}
+
+int main() {
+  checkType(1, 32);
+  checkType(1, 3.01);
+  checkType(3.01, "test"s);
+}
+```
+
+**output**
+
+```
+'1' and '32' are the same types. 
+'3.01' and 'test' are difference types.
+'3.01' and 'test' are difference types.
+```
+
+上述代码定义了两个重载的checkType()，它们的返回类型都是enable_if的嵌套类型bool。首先，通过is_same_v检查给定的值的类型是否相同，然后通过enable_if_t获得结果。当enable_if_t的第一个参数为true时，enable_if_t的类型就是bool；当第一个参数为false时，将不会有返回类型。这就是SFINAE发挥作用的地方。
+
+当编译器编译main()函数的第一行时，它试图找到接收两个整型值的checkType()函数。编译器会在源码中找到第一个重载的checkType()函数模板，并将T1和T2都设置为整数，以推断可使用这个模板的实例。然后，编译器会尝试确定返回类型。由于这两个参数是整数，因此是相同的类型，`is_same_v<T1, T2>` 将返回true，这导致 `enable_if_t<true, bool>` 返回类型bool。这样实例化时一切都很好，编译器可使用该版本的checkType()。
+
+当编译器尝试编译main()函数的第二行时，编译器会再次尝试找到合适的checkType()函数。编译器从第一个checkType()开始，判断出可将T1设置为int类型，将T2设置为double类型。然后，编译器会尝试确定返回类型。由于这两个参数都是整数，这一次，T1和T2是不同的类型，checkType()函数不会有返回类型。编译器会注意到这个错误，但由于SFINAE，还不会产生真正的编译错误。编译器将正常回溯，并试图找到另一个checkType()函数。在这种情况下，第二个checkType()可以正常工作，因为 `!is_same_v<T1, T2>` 为true，此时 `enable_if_t<true, bool>` 返回类型bool。
+
+如果希望在一组构造函数上使用enable_if，就不能将它用于返回类型，因为构造函数没有返回类型。此时可在带默认值的额外构造函数参数上使用enable_if。
+
+建议慎用enable_if，仅在需要解析重载歧义时使用，即无法使用其他技术（例如特化、concepts等）解析重载歧义时使用。例如，如果只希望在对模板使用了错误类型时编译失败，应使用concepts，或者静态断言，而不是SFINAE。当然，enable_if有合法的用例。一个例子是为类似于自定义矢量的类特化复制函数，使用enable_if和is_trivially_copyable类型trait对普通的可复制类型执行按位复制（例如C函数memcpy()）。
+
+> **警告**
+>
+> 依赖于SFINAE是一件很棘手和复杂的事。如果有选择地使用SFINAE和enable_if禁用重载集中地错误重载，就会得到奇怪的编译错误，这些错误很难跟踪。
+
+### 21.4.5 使用constexpr if简化enable_if结构
+
+某些情况下，C++17引入的constexpr if特性有助于极大地简化enable_if。
+
+例如，假设有以下两个类：
+
+```cpp
+class IsDoable {
+public:
+  void doit() const { cout << "IsDoable::doit()" << endl; }
+};
+
+class Derived : public IsDoable {};
+```
+
+可创建一个函数模板callDoit()。如果方法可用，它调用doit方法；否则输出错误消息。为此，可使用enable_if，检查给定类型是否从IsDoable派生：
+
+```cpp
+template <typename T>
+enable_if_t<is_base_of_v<IsDoable, T>, void> callDoit(T& t) { t.doit(); }
+
+template <typename T>
+enable_if_t<!is_base_of_v<IsDoable, T>, void> callDoit(T& t) { 
+  cout << "Cannot call doit()!" << endl;
+}
+```
+
+对该实现进行测试：
+
+```cpp
+Derived d;
+callDoit(d); 
+callDoit(123);
+```
+
+**output**
+
+```
+IsDoable::doit()
+Cannot call doit()!
+```
+
+使用constexpr if可极大地简化enable_if实现：
+
+```cpp
+template <typename T>
+void callDoit(const T& [[maybe_unused]] t) {
+  if constexpr (is_base_of_v<IsDoable, T>) {
+    t.doit();
+  } else {
+    cout << "Cannot call doit()!" << endl;
+  }
+}
+```
+
+使用constexpr if语句，如果提供了并非从IsDoable派生的类型，`t.doit()` 一行甚至不会编译！
+
+不使用is_base_of类型trait，也可使用is_invocable trait，这个trait可用于确定在调用给定函数时是否可以使用一组给定的参数。下面是is_invocable trait的callDoit()实现：
+
+```cpp
+template <typename T>
+void callDoit(const T& [[maybe_unused]] t) {
+  if constexpr(is_invocable_v<decltype(&IsDoable::doit), T>) {
+    t.doit();
+  } else {
+    cout << "Cannot call doit()!" << endl;
+  }
+}
+```
+
+### 21.4.6 逻辑运算符trait
+
+在3种逻辑运算符trait： **串联(conjunction)**、**分离(disjunction)** 与 **否定(negation)**。以 `_v` 结尾的可变模板也可供使用。这些trait接收可变数量的模板类型参数，可用于在类型trait上执行逻辑操作，如下所示：
+
+```cpp
+cout << conjunction_v<is_integral<int>, is_integral<short>> << " ";
+cout << conjunction_v<is_integral<int>, is_integral<double>> << " ";
+
+cout << disjunction_v<is_integral<int>, is_integral<double>, 
+        is_integral<short>> << " "; 	
+
+cout << negation_v<is_integral<int>> << " ";
+```
+
+**output**
+
+```
+1 0 1 0
+```
+
+### 21.4.7 静态断言
+
+static_assert允许在编译期对断言求值。断言需要时true，如果断言是false，编译器就会报错。static_assert调用接收两个参数：编译期求值的表达式和字符串。当表达式为false时，编译期将给出包含指定字符串的错误提示。下例核实是否在使用64位编译器进行编译：
+
+```cpp
+static_assert(sizeof(void*) == 8, "Requires 64-bit complication.");
+```
+
+如果编译器使用32位编译器，指针是4B，编译器将给出错误提示，如下所示：
+
+```
+test.cpp(3): error C2338: Requires 64-bit complication.
+```
+
+从C++17开始，字符串参数变为可选的，如下所示：
+
+```cpp
+static_assert(sizeof(void*) == 8);
+```
+
+此时，如果表达式的计算结果是false，将得到与编译器相关的错误信息。
+
+static_assert可以和类型trait结合使用。示例如下：
+
+```cpp
+template <typename T>
+void foo(const T& t) {
+  static_assert(is_integral_v<T>, "T should be an integral type.");
+}
+```
+
+推荐使用C++20的concepts替代带有类型trait的static_assert()。例如：
+
+```cpp
+template <std::integral T>
+void foo(const T& t) {}
+```
+
+或者使用C++20简化的函数模板语法：
+
+```cpp
+void foo(const std::integral auto& t) {}
+```
