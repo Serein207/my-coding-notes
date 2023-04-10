@@ -18,6 +18,12 @@
     - [22.2.7 自动join线程](#2227-自动join线程)
     - [22.2.8 从线程中获得结果](#2228-从线程中获得结果)
     - [22.2.9 复制和重新抛出异常](#2229-复制和重新抛出异常)
+  - [22.3 原子操作库](#223-原子操作库)
+    - [22.3.1 原子操作](#2231-原子操作)
+    - [22.3.2 原子智能指针](#2232-原子智能指针)
+    - [22.3.3 原子引用](#2233-原子引用)
+    - [22.3.4 使用原子类型](#2234-使用原子类型)
+    - [22.3.5 等待原子变量](#2235-等待原子变量)
 
 ## 22.1 多线程编程概述
 
@@ -425,3 +431,289 @@ Main function caught: 'Exception from thread'
 ```
 
 main()函数通常使用join()阻塞主线程，并等待线程完成。在GUI应用程序中，阻塞线程意味着UI失去响应。此时，可使用消息传递范型在线程之间通信。例如，可让前面的threadFunc()函数给UI线程发送一条消息，消息的参数为current_exception()结果的一份副本。但即使如此，也需要确保在任何线程上调用join或detach()。
+
+## 22.3 原子操作库
+
+原子类型允许原子访问，这意味着不需要额外的同步机制就可以执行并发的读写操作。没有原子操作，递增变量就不是线程安全的，因为编译器首先将值从内存加载到寄存器中，递增后再把结果保存回内存。另一个线程可能在这个递增操作的执行过程中接触到内存，导致数据争用。例如，下面的代码不是线程安全的，包含数据争用条件：
+
+```cpp
+int counter { 0 };  // global variable
+...
+++counter;          // executed in multiple threads
+```
+
+为使这个线程安全且不显式地使用任何同步机制，可使用 `std::atomic` 类型。下面式使用原子整数的相同代码：
+
+```cpp
+std::atomic<int> counter { 0 };  // global variable
+...
+++counter;                       // executed in multiple threads
+```
+
+这些原子类型都定义在 `<atomic>` 中。C++标准为所有基本类型定义了命名的整型原子类型，如下表所示：
+
+| 命名的原子类型 | 等效的 `std::atomic` 类型   |
+| -------------- | --------------------------- |
+| atomic_bool    | atomic\<bool>               |
+| atomic_char    | atomic\<char>               |
+| atomic_uchar   | atomic\<unsigned char>      |
+| atomic_int     | atomic\<int>                |
+| atomic_uint    | atomic\<unsigned int>       |
+| atomic_long    | atomic\<long>               |
+| atomic_ulong   | atomic\<unsigned long>      |
+| atomic_llong   | atomic\<long long>          |
+| atomic_ullong  | atomic\<unsigned long long> |
+| atomic_wchar_t | atomic\<wchar_t>            |
+| atomic_flag    | (none)                      |
+
+可使用原子类型，而不显式使用任何同步机制。但在底层，某些类型的原子操作可能使用同步机制（如互斥对象）。如果目标硬件缺少以原子方式执行操作的指令，则可能发生这种情况。可在原子类型上使用is_lock_free()方法来查询它是否支持无锁操作；所谓无锁操作，是指在运行时，底层没有显式的同步机制。
+
+可将std::atomic类模板与所有类型一起使用，并非仅限于整数类型。例如，可创建 `atomic<double>` 或 `atomic<MyType>` ，但这要求MyType具有is_trivially_copy()特点。底层可能需要显式的同步机制，具体取决于执行类型的大小。在下例中，Foo和Bar具有is_trivially_copy()特点，即 `std::is_trivially_copyable_v` 都等于true。但 `atomic<Foo>` 并非无锁操作，而 `atomic<Bar>` 是无锁操作。
+
+```cpp
+class Foo { private: int mArray[123]; };
+class Bar { private: int mInt; };
+
+int main() {
+  atomic<Foo> f;
+  // out: 1 0
+  cout << is_trivially_copyable_v<Foo> << " " << f.is_lock_free() << endl;
+
+  atomic<Bar> b;
+  // out: 1 1 
+  cout << is_trivially_copyable_v<Bar> << " " << b.is_lock_free() << endl;
+}
+```
+
+在多线程访问一段数据时，原子也可解决内存排序、编译器优化等问题。基本上，不用原子或显式的同步机制，就不可能安全地在多线程中读写同一段数据。
+
+> **注意**
+>
+> 内存序时访问内存的顺序。在没有任何原子和其他同步方法的情况下，只要不影响结果，编译器和硬件就可以重新对内存访问进行排序，这也称为as-if规则。在多线程环境这可能会造成问题。
+
+atomic_flag是原子布尔值，C++标准保证了它总是无锁的。它与 `atomic<bool>` 的区别在于它不提供加载和存储值的方法。
+
+### 22.3.1 原子操作
+
+C++标准定义了一些原子操作。本节描述其中的一些操作。
+
+下面是一个原子操作示例：
+
+```cpp
+bool atomic<T>::compare_exchange_strong(T& excepted, T desired);
+```
+
+这个操作以原子的方式实现了以下逻辑，伪代码如下：
+
+```cpp
+if (*this == excepted) {
+  *this = desired;
+  return true;
+} else {
+  excepted = *this;
+  return false;
+}
+```
+
+这个逻辑是编写无锁并发数据结构的关键组件。无锁并发数据结构允许不适用任何同步机制来操作数据。但实现此数据结构这里不做讨论。
+
+另一个例子是 `atomic<T>::fetch_add()`。这个操作获取该原子类型的当前值，将给定的递增值添加到这个原子值，然后返回未递增的原始值。例如：
+
+```cpp
+atomic<int> value { 10 };
+cout << "Value = " << value << endl;
+int fetched { value.fetch_add(4) };
+cout << "Fetched = " << fetched << endl;
+cout << "Value = " << value << endl; 
+```
+
+如果没有其他线程操作fetched和value变量的内容，那么输出如下：
+
+```cpp
+Value = 10        
+Fetched = 10     
+Value = 14
+```
+
+整型原子类型支持以下原子操作：fetch_add(), fetch_sub(), fetch_and(), fetch_or(), and fetch_xor(), ++, --, +=, -=, &=, |=, ^=。原子指针类型支持fetch_add(), fetch_sub(), ++, --, +=, -=。
+
+> **注意**
+>
+> 在C++20前，对浮点类型使用std::atomic，例如 `atomic<float>` 和 `atomic<double>` 提供了原子的读写操作，但没有提供原子的算数操作。C++20为浮点原子类型添加了fetch_add()和fetch_sub()的支持。
+
+大部分原子可接收一个额外参数，用于指定想要的内存顺序。例如：
+
+```cpp
+T atomic<T>::fetch_add(T value, memory_order = memory_order_seq_cst);
+```
+
+可改变默认的memory_order。C++标准提供了memory_order_relaxed, memory_order_consume, memory_order_acquire, memory_order_release, memory_order_acq_rel, memory_order_seq_cst，这些都定义在std命名空间中。然而，很少有必要使用默认之外的顺序。尽管其他内存顺序可能比默认顺序性能好，但根据一些标准，使用稍有不当，就有可能会再次引入争用条件或其他和线程相关的难以跟踪的问题。
+
+### 22.3.2 原子智能指针
+
+C++20通过 `<memory>` 引入了对 `atomic<std::shared_ptr<T>>` 的支持。shared_ptr中存储引用计数的控制块一直是线程安全的，这保证所有对象只被删除一次。然而，shared_ptr中其他任何内容都不是线程安全的。如果在shared_ptr实例上调用非const方法（如reset()），那么在多个线程中同时使用同一个shared_ptr将会导致数据竞争。另一方面，当在多个线程中使用同一个 `atomic<shared_ptr<T>>` 实例时，即使调用非const的shared_ptr方法也是线程安全的。请注意，在shared_ptr所指的对象上调用非const方法仍然不是线程安全的，需要手动同步。
+
+### 22.3.3 原子引用
+
+C++20也引入了 `std::atomic_ref`。即使使用相同的接口，它基本上与 `std::atomic` 相同，但它使用的是引用，而atomic总是拷贝提供给它的值。atomic_ref实例本身的生命周期应该比它引用的对象短。atomic_ref是可拷贝的。可以创建任意个atomic_ref实例来引用同一个对象。如果atomic_ref实例引用某个对象，则不允许在没有通过其中一个atomic_ref实例的情况下接触该对象。 `atomic_ref<T>` 类模板可以与任何简单的可复制类型T一起使用。此外，标准库还提供了以下内容：
+
+- 指针类型的偏特化，支持fetch_add()和fetch_sub()
+- 整数类型的全特化，支持fetch_add(), fetch_sub(), fetch_or(), fetch_and()和fetch_xor()
+- 浮点类型的全特化，支持fetch_add()和fetch_sub()
+
+### 22.3.4 使用原子类型
+
+本节解释为什么应该使用原子类型。假设下面有一个名为increment()的函数，它在一个循环中递增一个通过引用参数传入的整型值。这段代码使用 `std::this_thread::sleep_for()` 在每个循环中引入一小段延迟。sleep_for()的参数是 `std::chrono::duration`。
+
+```cpp
+void increment(int& counter) {
+  using namespace std::chrono_literals;
+  for (int i { 0 }; i < 100; ++i) {
+    ++counter;
+    std::this_thread::sleep_for(1ms);
+  }
+}
+```
+
+现在，想要并行运行多个线程，需要在共享变量counter上执行这个函数。如果不适用原子类型或任何线程同步机制，则会引入争用条件。下面的代码在加载了10个线程后，调用每个线程的join()，等待所有线程执行完毕。
+
+```cpp
+int main() {
+  int counter{ 0 };
+  std::vector<std::thread> threads;
+  for (int i { 0 }; i < 10; ++i) {
+    threads.push_back(std::thread{ increment, std::ref(counter) });
+  }
+
+  for (auto& t : threads) {
+    t.join();
+  }
+  std::cout << "Result = " << counter << std::endl;
+}
+```
+
+由于increment递增了这个整数100次，加载了10个线程，并且每个线程都在同一个共享变量counter上执行increment()，因此期待的解惑是1000。如果执行这个程序几次，可能会得到以下输出。但值不同。
+
+```
+Result = 982
+Result = 984
+Result = 977
+```
+
+这段代码清楚地表现了数据争用行为。在这个例子中，可以使用原子类型解决该问题：
+
+```cpp
+import <atomic>;
+
+void increment(std::atomic<int>& counter) {
+  using namespace std::chrono_literals;
+  for (int i{ 0 }; i < 100; ++i) {
+    ++counter;
+    std::this_thread::sleep_for(1ms);
+  }
+}
+
+int main() {
+  std::atomic<int> counter{ 0 };
+  std::vector<std::thread> threads;
+  for (int i{ 0 }; i < 10; ++i) {
+    threads.push_back(std::thread{ increment, std::ref(counter) });
+  }
+
+  for (auto& t : threads) {
+    t.join();
+  }
+  std::cout << "Result = " << counter << std::endl;
+}
+```
+
+为这段代码添加 `<atomic>` ，将共享计数器类型从int变为 `std::atomic<int>`。运行这个改进后的版本，将永远得到结果1000：
+
+```
+Result = 1000
+Result = 1000
+Result = 1000
+```
+
+不用在代码中显式地添加任何同步机制，就得到了线程安全且没有争用条件的程序。因为对原子类型执行 `++counter` 操作会在原子事务中加载值，递增值并保存值，这个过程不会被打断。
+
+通过C++20的atomic_ref，可以像下面这样解决数据竞争问题：
+
+```cpp
+void increment(int& counter) {
+  using namespace std::chrono_literals;
+  std::atomic_ref<int> atomicCounter { counter };
+  for (int i { 0 }; i < 100; ++i) {
+    ++atomicCounter;
+    std::this_thread::sleep_for(1ms);
+  }
+}
+
+int main() {
+  int counter { 0 };
+  std::vector<std::thread> threads;
+  for (int i { 0 }; i < 10; ++i) {
+    threads.push_back(std::thread{ increment, std::ref(counter) });
+  }
+
+  for (auto& t : threads) {
+    t.join();
+  }
+  std::cout << "Result = " << counter << std::endl;
+}
+```
+
+但是，修改后的代码会引发一个新问题：性能问题。试着最小化同步次数，包括原子操作和显式同步，因为这会降低性能。对于这个示例，推荐的最佳解决方案是让increment()在一个本地变量中计算结果，并且在循环把它添加到counter引用后再计算。注意仍需要使用原子类型，因为仍要在多线程中写入counter：
+
+```cpp
+void increment(atomic<int>& counter) {
+  using namespace std::chrono_literals;
+  int result { 0 };
+  for (int i { 0 }; i < 100; ++i) {
+    ++result;
+    std::this_thread::sleep_for(1ms);
+  }
+  counter += result;
+}
+```
+
+### 22.3.5 等待原子变量
+
+C++20在 `std::atomic` 和 `std::atomic_ref` 中添加了如下表所示的方法，用来有效地等待原子变量被修改。
+
+| 方法             | 描述                                                                                             |
+| ---------------- | ------------------------------------------------------------------------------------------------ |
+| `wait(oldValue)` | 阻塞线程，直到另一个线程调用notify_one()或notify_all()并且原子变量的值已经改变，即不等于oldValue |
+| `notify_one()`   | 唤醒一个阻塞在wait()调用上的线程                                                                 |
+| `notify_all()`   | 唤醒所有阻塞在wait()调用上的线程。                                                               |
+
+下面是这些用法的一个示例：
+
+```cpp
+using namespace std::chrono_literals;
+
+std::atomic<int> value { 0 };
+
+std::thread job { [&value] {
+  std::cout << "Thread starts waiting." << std::endl;
+  value.wait(0);
+  std::cout << "Thread wakes up, value = " << value << std::endl;
+} };
+
+std::this_thread::sleep_for(2s);
+
+std::cout << "Main thread is going to change value to 1." << std::endl;
+value = 1;
+value.notify_all();
+
+job.join();
+```
+
+**output**
+
+```
+Thread starts waiting.
+|> (after 2.0s)
+Main thread is going to change value to 1. 
+Thread wakes up, value = 1.0   
+```
