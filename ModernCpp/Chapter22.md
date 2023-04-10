@@ -715,5 +715,5 @@ job.join();
 Thread starts waiting.
 |> (after 2.0s)
 Main thread is going to change value to 1. 
-Thread wakes up, value = 1.0   
+Thread wakes up, value = 1 
 ```
