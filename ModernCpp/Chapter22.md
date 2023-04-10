@@ -343,7 +343,7 @@ job.request_stop();
 
 - `[[noreturn]] void rethrow_exception(exception_ptr p);`  
   
-  这个函数重新抛出由exception_ptr参数引用的异常。未必在最开始生成引用异常的那个线程中重新抛出这个异常，因此这个特性特别适合于跨不同线程的异常处理。`[[noreturn]]` 表示这个函数据对不会正常地返回。
+  这个函数重新抛出由exception_ptr参数引用的异常。未必在最开始生成引用异常的那个线程中重新抛出这个异常，因此这个特性特别适合于跨不同线程的异常处理。`[[noreturn]]` 表示这个函数绝对不会正常地返回。
 
 - `template <class E> exception_ptr make_exception_ptr(E e) noexcept;`
   
