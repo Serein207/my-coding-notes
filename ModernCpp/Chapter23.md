@@ -57,7 +57,7 @@ int main() {
   std::vector<size_t> data;
   std::vector<std::thread> threads;
   for (size_t i{ 0 }; i < NumberOfThreads; ++i) {
-    threads.push_back(std::thread { doWork, i, ref(data) });
+    threads.push_back(std::thread { doWork, i, std::ref(data) });
   }
   for (auto& t : threads) {
     t.join();
