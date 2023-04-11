@@ -95,7 +95,7 @@ int main() {
 
 ### 23.1.3 定时的互斥体类
 
-当对任何互斥锁类调用lock()时，该调用会阻塞，直到获得锁为止。另一方面，在互斥锁类上调用try_lock()会尝试获取一个锁，但如果不成功就会立即返回。还有一些定时互斥类体类，可以尝试获得锁，但在一段时间后放弃。
+当对任何互斥锁类调用lock()时，该调用会阻塞，直到获得锁为止。另一方面，在互斥锁类上调用try_lock()会尝试获取一个锁，但如果不成功就会立即返回。还有一些定时互斥类，可以尝试获得锁，但在一段时间后放弃。
 
 标准库提供了3个定时的互斥体类：`std::timed_mutex` `std::recursive_timed_mutex` 和 `std::shared_timed_mutex`。前两个类在 `<mutex>` 中定义，最后一个在 `<shared_mutex>` 中定义。它们都支持lock(), try_lock()和unlock()方法。shared_timed_mutex也支持lock_shared(), try_lock_shared(), 和 unlock_shared()。这些方法的行为与前面描述的类似。此外，它们还支持以下方法：
 
@@ -114,7 +114,7 @@ recursive_timed_mutex的行为和recursive_mutex类型，允许一个线程多�
 
 ### 23.2.1 lock_guard
 
-lock_guard在 `<mutex>` 中定义，有两个构造函数。
+`std::lock_guard` 在 `<mutex>` 中定义，有两个构造函数。
 
 - `explicit lock_guard(mutex_type& m);`
 
@@ -146,7 +146,7 @@ lock_guard在 `<mutex>` 中定义，有两个构造函数。
 
 - `unique_lock(mutex_type& m, const chrono::time_point<Clock, Duration>& abs_time);`
 
-  接收一个互斥体引用和一个绝对时间的构造函数。如果这个构造函数试图获取一个锁，直到西戎时间超过给定的绝对时间。
+  接收一个互斥体引用和一个绝对时间的构造函数。如果这个构造函数试图获取一个锁，直到系统时间超过给定的绝对时间。
 
 - `unique_lock(mutex_type& m, const chrono::duration<Rep, Period>& rel_time);`
 
@@ -156,7 +156,7 @@ unique_lock类也有以下方法：lock(), try_lock(), try_lock_for(), try_lock_
 
 ### 23.2.3 shared_lock
 
-shared_lock类在 `<shared_mutex>` 中定义，它的构造函数与方法unique_lock相同。区北史，shared_lock类在底层的共享互斥体上调用与共享所有权相关的方法。因此，shared_lock的方法为lock, try_lock()等，但在底层的共享互斥体上，它们是lock_shared(), try_lock_shared()等。因此，shared_lock和unique_lock有相同的接口，但获得的是共享锁而不是独占锁。
+shared_lock类在 `<shared_mutex>` 中定义，它的构造函数与方法unique_lock相同。区别是，shared_lock类在底层的共享互斥体上调用与共享所有权相关的方法。因此，shared_lock的方法为lock, try_lock()等，但在底层的共享互斥体上，它们是lock_shared(), try_lock_shared()等。因此，shared_lock和unique_lock有相同的接口，但获得的是共享锁而不是独占锁。
 
 ### 23.2.4 一次性获得多个锁
 
@@ -170,7 +170,7 @@ template <class L1, class L2, class... L3> void lock(L1&, L2&, L3&...);
 
 try_lock()函数具有类似的原型，但它通过顺序调用每个给定互斥体对象的try_lock()，试图获得所有互斥体对象上的锁。如果所有try_lock()调用都成功，那么这个函数返回-1。如果任何try_lock()调用失败，那么对所有已经获得的锁调用unlock()，返回值是在其上调用try_lock()失败的互斥体的参数索引（从0开始）。
 
-下例演示如何使用泛型函数lock()。process()函数首先创建两个锁，每个互斥体一个锁，然后将一个 `std::defer_lock_t` 实例作为第二个参数传入，告诉unique_lock不要在构造期间获得锁。然后调用std::lock()获得这两个锁，而不会出现死锁：
+下例演示如何使用泛型函数lock()。process()函数首先创建两个锁，每个互斥体一个锁，然后将一个 `std::defer_lock_t` 实例作为第二个参数传入，告诉unique_lock不要在构造期间获得锁。然后调用 `std::lock()` 获得这两个锁，而不会出现死锁：
 
 ```cpp
 std::mutex mut1;
@@ -319,7 +319,7 @@ public:
 private:
   int m_id;
   int m_numIterations;
-  inline static mutex ms_mutex;
+  inline static std::mutex ms_mutex;
 };
 ```
 
