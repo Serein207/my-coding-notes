@@ -1,5 +1,10 @@
 # Chapter25. Modern C++ 协程
 
+- [Chapter25. Modern C++ 协程](#chapter25-modern-c-协程)
+  - [25.1 latch](#251-latch)
+  - [25.2 barrier](#252-barrier)
+  - [24.4 semaphore](#244-semaphore)
+
 ## 25.1 latch
 
 latch是一次性使用的线程协调点。一旦给定数量的线程达到latch点时，所有线程都会解除阻塞并继续执行。基本上它是个计数器，在每个线程达到latch点时倒数。一旦计数器达到零，latch将无限期保持在一个有信号的状态，所有阻塞线程都将解除阻塞，随后到达latch点的任何线程会立刻被允许继续执行。
