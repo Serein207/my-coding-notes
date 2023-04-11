@@ -1,6 +1,6 @@
-# Chapter24. Modern C++ 条件变量，闩与屏障，信号量
+# Chapter24. Modern C++ 条件变量
 
-- [Chapter24. Modern C++ 条件变量，闩与屏障，信号量](#chapter24-modern-c-条件变量闩与屏障信号量)
+- [Chapter24. Modern C++ 条件变量](#chapter24-modern-c-条件变量)
   - [24.1. 虚假唤醒](#241-虚假唤醒)
   - [24.2 使用条件变量](#242-使用条件变量)
 
