@@ -34,8 +34,8 @@ Modern C++ 内容主要摘自《C++20高级编程》和cppreference.com
   - [Chapter21 模板元编程](ModernCpp/Chapter21.md)
   - [Chapter22 多线程](ModernCpp/Chapter22.md)
   - [Chapter23 互斥](ModernCpp/Chapter23.md)
-  - [Chapter24 条件变量](ModernCpp/Chapter24.md)
-  - [Chapter25 协程](ModernCpp/Chapter25.md)
+  - [Chapter24 条件变量，闩与屏障，信号量](ModernCpp/Chapter24.md)
+  - [Chapter25 future，协程协程](ModernCpp/Chapter25.md)
 
 ## C++基础语法 目录
 
