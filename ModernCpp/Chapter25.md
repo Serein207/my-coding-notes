@@ -10,6 +10,8 @@
     - [25.5.3 `std::async`](#2553-stdasync)
     - [25.5.4 异常处理](#2554-异常处理)
     - [`std::shared_future`](#stdshared_future)
+  - [25.6 示例：多线程的Logger类](#256-示例多线程的logger类)
+  - [25.7 协程](#257-协程)
 
 ## 25.1 latch
 
@@ -306,3 +308,12 @@ thread2Started.get_future().wait();
 // set the parameter to wake up both of them
 signalPromise.set_value(42);
 ```
+
+## 25.6 示例：多线程的Logger类
+
+本节演示如何使用线程、互斥体对象、锁和条件变量编写一个多线程的Logger类，这个类允许不同宣传向队列中添加日志消息。Logger类本身会在另一个后台线程中处理这个队列，将日志信息串行写入一个文件。
+
+详见 [Logger](/code/Loggeer)
+
+## 25.7 协程
+
