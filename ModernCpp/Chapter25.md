@@ -9,7 +9,7 @@
     - [25.5.2 `std::packaged_task`](#2552-stdpackaged_task)
     - [25.5.3 `std::async`](#2553-stdasync)
     - [25.5.4 异常处理](#2554-异常处理)
-    - [`std::shared_future`](#stdshared_future)
+    - [25.5.5 `std::shared_future`](#2555-stdshared_future)
   - [25.6 示例：多线程的Logger类](#256-示例多线程的logger类)
   - [25.7 协程](#257-协程)
 
@@ -261,7 +261,7 @@ int main() {
 }
 ```
 
-### `std::shared_future`
+### 25.5.5 `std::shared_future`
 
 `std::future<T>` 只要求T可移动。在future\<T>上调用get()时，结果将移出future，并返回。这意味着只能在 future\<T>上调用get()一次。
 
