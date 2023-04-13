@@ -317,3 +317,66 @@ signalPromise.set_value(42);
 
 ## 25.7 协程
 
+协程是一个可以在执行过程中挂起并在稍后的时间点恢复的函数。任何函数体包含以下任一项都是协程：
+
+- co_wait：在等待一个计算完成时挂起一个协程的执行。当计算完成后，继续执行。
+- co_return：从协程返回。在此之后，协程无法恢复。
+- co_yield：从协程返回一个值给调用者，并挂起协程，随后再次调用协程，在它被挂起的地方继续执行。
+
+通常由两种类型的协程：有栈协程和无栈协程。有栈协程可以从嵌套调用内部的任何地方挂起。无栈协程只能从顶层栈帧挂起。当无栈协程挂起时，只保存函数体中具有自动存储时间的变量和临时变量，不保存调用栈。因此，无栈协程的内存使用非常少，允许数百万甚至数十亿的协程同步运行。C++只支持无栈协程的变体。
+
+协程可以使用同步编程风格来实现异步操作，用例包括以下内容：
+
+- 生成器(Generators)
+- 异步I/O(Asynchronous I/O)
+- 延迟计算(Lazy computations)
+- 事件驱动程序(Event-driven applications)
+
+C++20标准只提供了协程构建块，也就是语言的补充。
+
+C+20标准库没有提供任何标准化的高级协程，比如生成器。有一些第三方的库确实提供了这样的协程。msvc还提供了一些更高层次的结构，比如一个实验性生成器。下面代码演示了msvc `std::experimental::generator` 协程的使用：
+
+```cpp
+#include <experimental/generator>
+#include <iostream>
+#include <coroutine>
+#include <chrono>
+
+std::experimental::generator<int> getSequenceGenerator(
+  int startValue, int numOfValues) {
+  for (int i { startValue }; i < startValue + numOfValues; ++i) {
+    // print the local time to standard out
+    time_t tt { std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()) };
+    tm t;
+    localtime_s(&t, &tt);
+    std::cout << std::put_time(&t, "%H:%M:%S") << ": ";
+    // yield a value to the caller, and suspend the coroutine
+    co_yield i;
+  }
+}
+
+int main() {
+  auto gen { getSequenceGenerator(10, 5) };
+  for (const auto& value : gen) {
+    std::cout << value << " (Press enter for next value)";
+    std::cin.ignore();
+  }
+}
+```
+
+运行程序会得到以下输出：
+
+```
+20:51:18: 10 (Press enter for next value)
+```
+
+每按下一次Enter，生成器都会请求一个新值。这回导致协程继续执行。
+
+```
+20:51:20: 11 (Press enter for next value)
+20:51:21: 12 (Press enter for next value)
+20:51:21: 13 (Press enter for next value)
+20:51:22: 14 (Press enter for next value)
+```
+
+这是几乎关于协程的所有内容。也许将来的C++会引入标准化协程。
