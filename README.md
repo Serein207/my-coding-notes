@@ -93,10 +93,10 @@ Modern C++ 内容主要摘自《C++20高级编程》和cppreference.com
 
 ## C++ Concurrency In Action Notes 学习笔记
 
-- [Chapter2 线程管理](Effective-Cpp-Series-Notes/Chapter2线程管理.md)
-- [Chapter3 线程间共享数据](Effective-Cpp-Series-Notes/Chapter3线程间共享数据.md)
-- [Chapter4 同步并发操作](Effective-Cpp-Series-Notes/Chapter4同步并发操作.md)
-- [Chapter5 C++内存模型和原子类型操作](Effective-Cpp-Series-Notes/Chapter5C++内存模型和原子类型操作.md)
+- [Chapter2 线程管理](Cpp-Concurrency-In-Action-Notes/Chapter2线程管理.md)
+- [Chapter3 线程间共享数据](Cpp-Concurrency-In-Action-Notes/Chapter3线程间共享数据.md)
+- [Chapter4 同步并发操作](Cpp-Concurrency-In-Action-Notes/Chapter4同步并发操作.md)
+- [Chapter5 C++内存模型和原子类型操作](Cpp-Concurrency-In-Action-Notes/Chapter5C++内存模型和原子类型操作.md)
 
 ## Effective Cpp Series 学习笔记
 
