@@ -21,9 +21,10 @@
 
 ## Rust学习笔记
 
-- [01 基础语法](/rust-study-notes/01.md)
-- [02 所有权](/rust-study-notes/02.md)
-- [03 struct](/rust-study-notesrust/03.md)
+- Async Rust
+  - [01 Why `.await`](./rust-study-notes/01.md)
+  - [02 How a Pending Future is Woken](./rust-study-notes/02.md)
+  - [03 Why shouldn't I hold a mutex guard across an await point](./rust-study-notes/03.md)
 
 ## C/C++语法学习笔记
 
