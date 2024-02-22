@@ -15,9 +15,17 @@
 
 当程序对同一内存地址中的数据访问存在竞争，可以使用原子操作来避免未定义行为。当然，这不会影响竞争的产生——原子操作并没有指定访问顺序——但原子操作把程序拉回到定义行为的区域内。
 
-### 修改顺序
+### 修改序列
 
 如果对象不是一个原子类型，必须确保有足够的同步操作，来确定每个线程都遵守了变量的修改顺序。当不同线程在不同序列中访问同一个值时，可能就会遇到数据竞争或未定义行为。如果使用原子操作，编译器就有责任去做必要的同步。
+
+修改序列的基本要求如下：
+
+1. 只要某线程看到过某个对象，则该线程的后续读操作必须获得相对新近的值，并且，该线程对同一对象的后续的写操作，必然出现在修改序列的后方。
+2. 如果某线程先向一个对象写数据，然后再读它，则必须读取到前面写的值。
+3. 若在修改序列中，上述读写操作之间还有别的操作，则必须读取到最后写入的值。
+4. 在程序内部，对于同一个对象，全部线程都必须对其形成相同的修改序列，并且在所有对象上都要求如此。
+5. 多个对象上的修改序列只是相对关系，线程之前不必达成一致。
 
 ## 原子操作和原子类型
 
@@ -47,11 +55,7 @@ C++17中，所有原子类型有一个 `static constexpr` 成员变量，如果�
 
 通常，标准原子类型是不能进行拷贝和赋值的，它们没有拷贝构造函数和拷贝赋值操作符。但是，可以隐式转化成对应的内置类型，所以这些类型依旧支持赋值，可以使用`load()`和`store()`、`exchange()`、`compare_exchange_weak()`和`compare_exchange_strong()`。它们都支持复合赋值符：`+=`, `-=`, `*=`, `|=` 等等。并且使用整型和指针的特化类型还支持`++`和`--`操作。当然，这些操作也有功能相同的成员函数所对应：`fetch_add()`, `fetch_or()`等等。赋值操作和成员函数的返回值，要么是被存储的值(赋值操作)，要么是操作前的值(命名函数)，这就能避免赋值操作符返回引用。
 
-`std::atomic<>` 类模板不仅仅是一套可特化的类型，作为一个原发模板也可以使用用户定义类型创建对应的原子变量。因为，它是一个通用类模板，操作被限制为`load()`，`store()`(赋值和转换为用户类型)，`exchange()`，`compare_exchange_weak()`和`compare_exchange_strong()`。每种函数类型的操作都有一个内存序参数，这个参数可以用来指定存储的顺序。操作分为三类：
-
-1. Store操作，可选如下顺序：`memory_order_relaxed`, `memory_order_release`, `memory_order_seq_cst`。
-2. Load操作，可选如下顺序：`memory_order_relaxed`, `memory_order_consume`, `memory_order_acquire`, `memory_order_seq_cst`。
-3. Read-modify-write(读-改-写)操作，可选如下顺序：`memory_order_relaxed`, `memory_order_consume`, `memory_order_acquire`, `memory_order_release`, `memory_order_acq_rel`, `memory_order_seq_cst`。
+`std::atomic<>` 类模板不仅仅是一套可特化的类型，作为一个原发模板也可以使用用户定义类型创建对应的原子变量。因为，它是一个通用类模板，操作被限制为`load()`，`store()`(赋值和转换为用户类型)，`exchange()`，`compare_exchange_weak()`和`compare_exchange_strong()`。
 
 ### `std::atomic_flag`
 
@@ -63,12 +67,26 @@ C++17中，所有原子类型有一个 `static constexpr` 成员变量，如果�
 std::atomic_flag f = ATOMIC_FLAG_INIT;
 ```
 
-当标志对象已初始化，那么只能做三件事情：销毁，清除或设置(查询之前的值)。这些操作对应的函数分别是：`clear()` 成员函数和 `test_and_set()` 成员函数。`clear()` 是一个存储操作，所以不能有 `memory_order_acquire` 或  `memory_order_acq_rel` 语义，但是 `test_and_set()` 是一个“读-改-写”操作，可以应用于任何内存序。每一个原子操作，默认的内存序都是 `memory_order_seq_cst`。
+当标志对象已初始化，那么只能做三件事情：销毁，清除或设置(查询之前的值)。这些操作对应的函数分别是：`clear()` 成员函数和 `test_and_set()` 成员函数。
+
+每种函数类型的操作都有一个内存序参数，这个参数可以用来指定存储的顺序。操作分为三类：
+
+1. Store操作，可选如下顺序：`memory_order_relaxed`, `memory_order_release`, `memory_order_seq_cst`。
+2. Load操作，可选如下顺序：`memory_order_relaxed`, `memory_order_consume`, `memory_order_acquire`, `memory_order_seq_cst`。
+3. Read-modify-write(读-改-写)操作，可选如下顺序：`memory_order_relaxed`, `memory_order_consume`, `memory_order_acquire`, `memory_order_release`, `memory_order_acq_rel`, `memory_order_seq_cst`。
+
+Sequencial consistent ordering 实现同步，且保证全局顺序一致。Acquire release 实现同步，但不保证全局顺序一致。Relaxed ordering 不能实现同步，值保证操作的原子性。
+
+`clear()` 是一个存储操作，所以不能有 `memory_order_acquire` 或  `memory_order_acq_rel` 语义，但是 `test_and_set()` 是一个“读-改-写”操作，可以应用于任何内存序。每一个原子操作，默认的内存序都是 `memory_order_seq_cst`。
 
 ```cpp
 f.clear(std::memory_order_release);
 bool x = f.test_and_set();
 ```
+
+### 实现自旋锁
+
+自旋锁是一种多线程环境下保护共享资源的同步机制。它的基本思想是，当一个线程尝试获取锁时，如果锁已经被其他线程持有，那么该线程就会不断地循环检查锁的状态，直到获取锁为止。
 
 `std::atomic_flag` 非常适合于作自旋互斥锁。初始化标志是“清除”，并且互斥量处于解锁状态。为了锁上互斥量，循环运行 `test_and_set()` 直到旧值为 `false`，就意味着这个线程已经被设置为 `true` 了。解锁互斥量是一件很简单的事情，将标志清除即可。
 
@@ -213,13 +231,13 @@ void update_global_data() {
 
 ## 同步操作
 
-### 同步发生
+### 同步发生 synchronizes with
 
 “同步发生”只能在原子类型之间进行。例如：操作一个数据结构(对互斥量上锁)，如果数据结构包含有原子类型，并且操作内部执行了一定的原子操作，那么这些操作就是“同步发生”关系。从根本上说，这种关系只能来源于对原子类型的操作。
 
 “同步发生”的基本想法：原子写操作W对变量x进行标记，同步与对x进行原子读操作，读取的是W操作写入的内容；或是W之后，同一线程上的原子写操作对x写入的值；亦或是任意线程对x的一系列原子读-改-写操作(例如，`fetch_add()` 或 `compare_exchange_weak()`)。这里，第一个线程所读取到的值为W操作写入的内容。C++内存模型允许为原子类型提供各种约束顺序。
 
-### 先行发生
+### 先行发生 happens before
 
 “先行发生”关系是一个程序中，基本构建块的操作顺序：它指定了某个操作去影响另一个操作。对于单线程来说：当一个操作排在另一个之后，那么这个操作就是先行发生的。如果源码中操作A发生在操作B之前，那么A就先行于B发生。
 
@@ -320,7 +338,7 @@ int main() {
 > 原子类型上的操作以松散序列执行，没有任何同步关系。同一线程中对于同一变量的操作还是服从先发执行的关系，但是不同线程几乎不需要相对的顺序。唯一的要求是在访问同一线程中的单个原子变量不能重排序，当给定线程看到原子变量的特定值时，随后线程的读操作就不会去检索变量较早的那个值。当使用`memory_order_relaxed`，就不需要任何额外的同步，对于每个变量的修改顺序只是线程间共享的事情。
 
 #### 无承诺的保证
-`std::memory_order_relax`就是一种无承诺的保证。使用这种模式与没有使用这种模式达到的效果是一样的。
+`std::memory_order_relaxed`就是一种无承诺的保证。使用这种模式与没有使用这种模式达到的效果是一样的。
 
 ```cpp
 std::atomic<int> a;
