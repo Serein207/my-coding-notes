@@ -173,7 +173,7 @@ p->prepare_data(42)
 std::thread t(process_big_object, std::move(p));
 ```
 
-## 转移线程多有权
+## 转移线程所有权
 
 `std::thread` 是一个资源占有类型，与其他C++标准库中的资源类型相同，都是可移动，但不可拷贝：
 
@@ -313,4 +313,6 @@ void f()
 std::cout << std::this::thread::get_id();
 ```
 
+> [!NOTE] 线程ID
+> 
 > C++标准只规定保证ID比较结果相等的线程必须有相同的输出，具体输出依赖于编译器实现。
